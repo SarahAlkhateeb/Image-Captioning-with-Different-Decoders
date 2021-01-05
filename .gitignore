@@ -1,0 +1,7 @@
+__pycache__
+cocoapi/images
+cocoapi/annotations
+pkldata
+slurm-*
+*.pth
+nltk_data
