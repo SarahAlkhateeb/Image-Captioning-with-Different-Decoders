@@ -84,3 +84,7 @@ def get_img_dir(mode):
         return PathConfig.train_img_dir
     else:
         return PathConfig.val_img_dir
+
+if __name__ == '__main__':
+    print(len(COCODataset('train', caption_max_len=25))) # 11 captions with caption_max_len=25
+    print(len(COCODataset('val', caption_max_len=25))) # 4 captions with caption_max_len=25 

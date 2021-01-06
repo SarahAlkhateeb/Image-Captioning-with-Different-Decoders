@@ -2,19 +2,19 @@
 
 ## Setup
 
+### Download data
+
+* ```mkdir -p cocoapi/images```
+* ```wget -b -P ./cocoapi/images http://images.cocodataset.org/zips/train2014.zip```
+* ```wget -b -P ./cocoapi/images http://images.cocodataset.org/zips/val2014.zip```
+* ```wget -b -P ./cocoapi http://images.cocodataset.org/annotations/annotations_trainval2014.zip```
+
+Then, unzip the files.
+
 ### NLTK Data
 If on university cluster, run:
 
 ```mkdir nltk_data && python -m nltk.downloader punkt -d nltk_data```
-
-Then, put 
-
-```
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
-```
-
-in every executable file.
 
 ### ResNet101 Model
 If on university cluster, run
@@ -23,4 +23,8 @@ If on university cluster, run
 
 ### Initialize
 
-Run ```python main.py``` with necessarry arguments.
+Run ```python init.py --vocab True```.
+
+### Confirm
+
+Run ```python dataset.py```
