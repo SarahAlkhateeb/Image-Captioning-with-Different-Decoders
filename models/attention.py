@@ -243,6 +243,8 @@ def train(device, args):
         collate_fn=collate_fn)
    
     if args.checkpoint is None:
+        # Initialize encoder/decoder models and optimizers.
+
         # Encoder.
         encoder = Encoder()
 
@@ -272,6 +274,7 @@ def train(device, args):
         start_epoch = 0
         metrics = {}
     else:
+        # Load encoder/decoder models and optimizers from checkpoint.
         chkpt = load_checkpoint(device, args)
         start_epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, metrics = unpack_checkpoint(chkpt)
         start_epoch += 1
