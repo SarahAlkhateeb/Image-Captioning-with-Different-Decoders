@@ -360,3 +360,5 @@ def train(device, args):
         }
         save_checkpoint(args, epoch, encoder, decoder, 
             encoder_optimizer, decoder_optimizer, metrics)
+
+    print(f'Model {args.model_name} finished training for {args.epochs} epochs.')
