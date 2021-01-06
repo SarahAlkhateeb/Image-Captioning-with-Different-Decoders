@@ -1,3 +1,4 @@
+import time
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
@@ -6,7 +7,9 @@ from torchvision import transforms
 from vocabulary import PAD_TOKEN
 from dataset import COCODataset
 from models.encoder import Encoder
-from utils import clip_gradient
+from metric import AccumulatingMetric
+from train_utils import clip_gradient
+
 
 class SoftAttention(nn.Module):
     """Attention network."""
@@ -268,7 +271,14 @@ def train(device, args):
     decoder.train()
     encoder.train()
 
+    num_batches = len(train_loader)
     for epoch in range(args.epochs):
+
+        accum_loss = AccumulatingMetric()
+        accum_time = AccumulatingMetric()
+
+        start = time.time()
+
         for batch_idx, (imgs, captions, caption_lengths) in enumerate(train_loader):
 
             # Move to GPU if available.
@@ -312,4 +322,11 @@ def train(device, args):
             if encoder_optimizer is not None:
                 encoder_optimizer.step()
 
-            print(f'Loss: {loss.item()}')
+            # Statistics.
+            accum_loss.update(loss.item())
+            accum_time.update(time.time() - start)
+            if batch_idx % args.print_freq == 0:
+                print(f'Epoch {epoch+1}/{args.epochs}, Batch {batch_idx+1}/{num_batches}, Loss {accum_loss.avg():.4f}, Time: {accum_time.val:.4f}')
+
+            # Reset start time.
+            start = time.time()

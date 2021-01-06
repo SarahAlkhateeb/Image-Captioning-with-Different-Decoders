@@ -26,6 +26,7 @@ def main():
     parser.add_argument('--fine_tune_embedding', type=bool, default=False, help='whether fine-tune word embeddings or not')
     parser.add_argument('--checkpoint', default=None, help='path to checkpoint, None if none.')
     parser.add_argument('--embedding_path', default=None, help='path to pre-trained word Embedding.')
+    parser.add_argument('--print_freq', type=int, default=1, help='print training/validation stats every __ batches.')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

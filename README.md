@@ -4,7 +4,7 @@
 
 ### Download data
 
-You need to download all necessary data and put the data into expected directories. First, do ```mkdir -p cocoapi/images```. Then download, the dataset by running the following commands:
+You need to download all necessary data and put the data into expected directories. Download the dataset by running the following commands:
 
 * ```wget -b -P ./cocoapi/images http://images.cocodataset.org/zips/train2014.zip```
 * ```wget -b -P ./cocoapi/images http://images.cocodataset.org/zips/val2014.zip```
@@ -16,7 +16,7 @@ Finally, unzip the files (e.g. using ```unzip```).
 
 We use nltk's word tokenizer and store nltk data locally in this directory. Run:
 
-```mkdir nltk_data && python -m nltk.downloader punkt -d nltk_data```
+```python -m nltk.downloader punkt -d nltk_data```
 
 ### ResNet101 Model
 

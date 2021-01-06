@@ -1,7 +1,10 @@
 __pycache__
-cocoapi/images
-cocoapi/annotations
-pkldata
+cocoapi/images/*
+!cocoapi/images/.gitkeep
+pkldata/*
+!pkldata/.gitkeep
 slurm-*
-*.pth
-nltk_data
+nltk_data/*
+!nltk_data/.gitkeep
+checkpoints/*
+!checkpoints/.gitkeep
