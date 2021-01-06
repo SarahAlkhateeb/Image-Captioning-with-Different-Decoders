@@ -10,6 +10,7 @@ from models.baseline import train as train_baseline_model
 
 def main():
     parser = argparse.ArgumentParser(description='Train')
+    parser.add_argument('model_name', type=str, help='unique name of model setting; saved with this name in checkpoints folder')
     parser.add_argument('--model', type=str, choices=['baseline', 'attention'], help='Model to train')
     parser.add_argument('--attention_dim', type=int, default=512, help='attention dimension.')
     parser.add_argument('--decoder_dim', type=int, default=512, help='decoder dimension.')

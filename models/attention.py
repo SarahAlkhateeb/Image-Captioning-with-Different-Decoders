@@ -355,5 +355,5 @@ def train(device, args):
         metrics = {
             'epoch_losses': epoch_losses
         }
-        save_checkpoint(epoch, encoder, decoder, 
+        save_checkpoint(args, epoch, encoder, decoder, 
             encoder_optimizer, decoder_optimizer, metrics)

@@ -1,5 +1,15 @@
 # Image Captioning
 
+## Example run
+
+From scratch:
+
+```python train.py 'basic_att' --model 'attention' --batch_size 4 --epochs 3```
+
+From checkpoint:
+
+```python train.py 'basic_att' --model 'attention' --batch_size 4 --epochs 3 --checkpoint 'basic_att_1.pth.tar'```
+
 ## Setup
 
 ### Download data

@@ -32,7 +32,7 @@ def unpack_checkpoint(chkpt):
     return chkpt['epoch'], chkpt['encoder'], chkpt['decoder'], chkpt['encoder_optimizer'], chkpt['decoder_optimizer'], chkpt['metrics']
 
 
-def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, metrics, verbose=True):
+def save_checkpoint(args, epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, metrics, verbose=True):
     """Saves model checkpoint.
     
     Args:
@@ -52,7 +52,7 @@ def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimize
         'encoder_optimizer': encoder_optimizer,
         'decoder_optimizer': decoder_optimizer,
     }
-    path = os.path.join(CHECKPOINTS_DIR, f'{decoder.__name__()}_{epoch}.pth.tar')
+    path = os.path.join(CHECKPOINTS_DIR, f'{args.model_name}_{epoch}.pth.tar')
     torch.save(state, path)
     if verbose:
         print(f'Saved checkpoint to {path}')
