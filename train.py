@@ -26,10 +26,6 @@ def main():
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    if not args.model in ['baseline', 'attention']:
-        print('Invalid model... exiting.')
-        return
          
     if args.model == 'baseline':
         print('Training baseline model...')
