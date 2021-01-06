@@ -10,11 +10,11 @@ You need to download all necessary data and put the data into expected directori
 * ```wget -b -P ./cocoapi/images http://images.cocodataset.org/zips/val2014.zip```
 * ```wget -b -P ./cocoapi http://images.cocodataset.org/annotations/annotations_trainval2014.zip```
 
-Finally, unzip the files.
+Finally, unzip the files (e.g. using ```unzip```).
 
 ### NLTK Data
 
-We use nltk's word tokenizer. If on university cluster, run:
+We use nltk's word tokenizer and store nltk data locally in this directory. Run:
 
 ```mkdir nltk_data && python -m nltk.downloader punkt -d nltk_data```
 

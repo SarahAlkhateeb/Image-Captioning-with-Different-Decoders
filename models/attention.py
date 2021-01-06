@@ -5,13 +5,13 @@ from torchvision import transforms
 
 from vocabulary import PAD_TOKEN
 from dataset import COCODataset
-from encoder import Encoder
+from models.encoder import Encoder
 from utils import clip_gradient
 
 class SoftAttention(nn.Module):
     """Attention network."""
 
-    def __init__(self, encoder_dim=248, decoder_dim=512, attention_dim=512):
+    def __init__(self, encoder_dim=2048, decoder_dim=512, attention_dim=512):
         """Initialize attention network.
 
         Args:
@@ -217,7 +217,7 @@ def train(device, args):
                             (0.229, 0.224, 0.225))])
     dataset = COCODataset(mode='train', img_transform=img_transform, caption_max_len=25)
 
-    # Dataloader.
+    # Collate function for datalaoader.
     pad_idx = dataset.vocab(PAD_TOKEN)
     def collate_fn(data):
         imgs, captions = zip(*data)
@@ -228,6 +228,7 @@ def train(device, args):
 
         return imgs, captions, caption_lengths
 
+    # Dataloader.
     train_loader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=args.batch_size,
@@ -235,10 +236,10 @@ def train(device, args):
         num_workers=args.workers,
         collate_fn=collate_fn)
 
-    # Create encoder.
+    # Encoder.
     encoder = Encoder().to(device)
 
-    # Encoder optimizer (None if not fine-tuning encoder).
+    # Encoder optimizer; None if not fine-tuning encoder.
     encoder_optimizer = torch.optim.Adam(
         params=filter(lambda param: param.requires_grad, encoder.parameters()), 
         lr=args.encoder_lr) if args.fine_tune_encoder else None
@@ -295,12 +296,20 @@ def train(device, args):
             # Add doubly stochastic attention regularization.
             loss += ((args.alpha_c - attention_weights.sum(dim=1)) ** 2).mean()
 
+            # Back propagation.
             decoder_optimizer.zero_grad()
+            if encoder_optimizer is not None:
+                encoder_optimizer.zero_grad()
             loss.backward()
 
-            # Gradient clip decoder.
+            # Clip gradients.
             clip_gradient(decoder_optimizer, args.grad_clip)
+            if encoder_optimizer is not None:
+                clip_gradient(encoder_optimizer, args.grad_clip)
             
+            # Update weights.
             decoder_optimizer.step()
+            if encoder_optimizer is not None:
+                encoder_optimizer.step()
 
             print(f'Loss: {loss.item()}')
