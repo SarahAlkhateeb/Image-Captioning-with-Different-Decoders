@@ -1,7 +1,10 @@
+import os
 import sys
 sys.path.append('cocoapi/PythonAPI/')
 import argparse
 import torch
+
+from pathconf import PathConfig
 from attention import train as train_attention_model
 from baseline import train as train_baseline_model
 
@@ -26,6 +29,9 @@ def main():
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    if not os.path.exists(PathConfig.vocab_file):
+        raise SystemError('Must run python init.py --vocab before training.')
          
     if args.model == 'baseline':
         print('Training baseline model...')

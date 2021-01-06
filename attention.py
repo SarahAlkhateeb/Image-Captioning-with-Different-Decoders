@@ -81,7 +81,7 @@ class AttentionDecoder(nn.Module):
         self.vocab_size = params.vocab_size
         self.dropout = params.dropout
         
-        # soft attention
+        # Soft attention
         self.attention = SoftAttention(self.encoder_dim, self.decoder_dim, self.attention_dim)
 
         # Decoder layers
@@ -112,7 +112,7 @@ class AttentionDecoder(nn.Module):
             embeddings: Pre-trained embeddings.
         """
 
-        # embeddings could the the glove_vectors for example
+        # Embeddings could the the glove_vectors for example
         self.embedding.weight = nn.Parameter(embeddings)
 
     def fine_tune_embeddings(self, on=True):
@@ -280,7 +280,8 @@ def train(device, args):
             # Decode.
             scores, captions_sorted, decode_lengths, attention_weights = decoder(img_features, captions, caption_lengths)
 
-            # Since we decoded starting with a START_TOKEN, the targets are all words after START_TOKEN, up to END_TOKEN.
+            # Since we decoded starting with a START_TOKEN, the targets are all words after START_TOKEN, up to END_TOKEN
+            # (i.e. we remove START_TOKEN and include END_TOKEN).
             targets = captions_sorted[:, 1:]
 
             # Remove timesteps that we didn't decode at, or are pads.
