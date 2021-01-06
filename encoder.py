@@ -41,30 +41,30 @@ class Encoder(nn.Module):
         for param in self.resnet.parameters():
             param.requires_grad = False
 
-        def forward(self, imgs):
-            """Forward propagation.
+    def forward(self, imgs):
+        """Forward propagation.
 
-            Args:
-                imgs (torch.Tensor): A tensor of dimension (batch_size, 3, img_size, img_size).
-            
-            Returns:
-                Encoded images of dimension (batch_size, encoded_img_size, encoded_img_size, 2048)
-            """
+        Args:
+            imgs (torch.Tensor): A tensor of dimension (batch_size, 3, img_size, img_size).
+        
+        Returns:
+            Encoded images of dimension (batch_size, encoded_img_size, encoded_img_size, 2048)
+        """
 
-            features = self.resnet(imgs) # (batch_size, encoder_dim, img_size/32, img_size/32)
-            if self.att_method == 'ByChannel': # (batch_size, encoder_dim, 8, 8) -> (batch_size, 512, 8, 8)
-                features = self.relu(self.bn1(self.cnn1(features)))
-            features = self.adaptive_pool(features) # (batch_size, 2048/512, 8, 8) -> (batch_size, encoder_dim/512, enc_img_size, enc_img_size)
-            features = features.permute(0, 2, 3, 1)
-            return features
+        features = self.resnet(imgs) # (batch_size, encoder_dim, img_size/32, img_size/32)
+        if self.att_method == 'ByChannel': # (batch_size, encoder_dim, 8, 8) -> (batch_size, 512, 8, 8)
+            features = self.relu(self.bn1(self.cnn1(features)))
+        features = self.adaptive_pool(features) # (batch_size, 2048/512, 8, 8) -> (batch_size, encoder_dim/512, enc_img_size, enc_img_size)
+        features = features.permute(0, 2, 3, 1)
+        return features
 
-        def fine_tune(self, on=True):
-            """Allow or prevent the computation of gradients for convolutional blocks 2 through 4 of the encoder.
+    def fine_tune(self, on=True):
+        """Allow or prevent the computation of gradients for convolutional blocks 2 through 4 of the encoder.
 
-            Args:
-                on (bool): Switch on or off.
-            """
+        Args:
+            on (bool): Switch on or off.
+        """
 
-            for conv_block in list(self.resnet.children())[5:]:
-                for param in conv_block.parameters():
-                    param.requires_grad = on
+        for conv_block in list(self.resnet.children())[5:]:
+            for param in conv_block.parameters():
+                param.requires_grad = on
