@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--alpha_c', type=float, default=1., help='regularization parameter for doubly stochastic attention, as in the paper.')
     parser.add_argument('--fine_tune_encoder', type=bool, default=False, help='whether fine-tune encoder or not')
     parser.add_argument('--fine_tune_embedding', type=bool, default=False, help='whether fine-tune word embeddings or not')
-    parser.add_argument('--checkpoint', default=None, help='path to checkpoint, None if none.')
+    parser.add_argument('--checkpoint', default=None, type=str, help='name of checkpoint in ./checkpoints folder; None if none.')
     parser.add_argument('--embedding_path', default=None, help='path to pre-trained word Embedding.')
     parser.add_argument('--print_freq', type=int, default=1, help='print training/validation stats every __ batches.')
     args = parser.parse_args()
@@ -43,6 +43,14 @@ def main():
         print('Training attention model...')
         train_attention_model(device, args)
         return
+
+class HejHopp:
+    pass
+
+class HejHopp2:
+    
+    def __name__(self):
+        return 'HejHopp2'
 
 if __name__ == '__main__':
     main()

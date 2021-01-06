@@ -9,7 +9,7 @@ from dataset import COCODataset
 from models.encoder import Encoder
 from metric import AccumulatingMetric
 from train_utils import clip_gradient
-
+from checkpoint import save_checkpoint, load_checkpoint, unpack_checkpoint
 
 class SoftAttention(nn.Module):
     """Attention network."""
@@ -107,6 +107,9 @@ class AttentionDecoder(nn.Module):
         # Default behaviour is to fine-tune embeddings. If using pre-trained embeddings
         # you might not want fine-tuning.
         self.fine_tune_embeddings(on=True)
+
+    def __name__(self):
+        return 'att_dec'
             
     def load_pretrained_embeddins(self, embeddings):
         """Loads embedding layer with pre-trained embeddings.
@@ -238,32 +241,44 @@ def train(device, args):
         shuffle=True,
         num_workers=args.workers,
         collate_fn=collate_fn)
+   
+    if args.checkpoint is None:
+        # Encoder.
+        encoder = Encoder()
 
-    # Encoder.
-    encoder = Encoder().to(device)
+        # Encoder optimizer; None if not fine-tuning encoder.
+        encoder_optimizer = torch.optim.Adam(
+            params=filter(lambda param: param.requires_grad, encoder.parameters()), 
+            lr=args.encoder_lr) if args.fine_tune_encoder else None
 
-    # Encoder optimizer; None if not fine-tuning encoder.
-    encoder_optimizer = torch.optim.Adam(
-        params=filter(lambda param: param.requires_grad, encoder.parameters()), 
-        lr=args.encoder_lr) if args.fine_tune_encoder else None
+        # Create decoder.
+        decoder_params = AttentionDecoderParams()
+        decoder_params.attention_dim = args.attention_dim
+        decoder_params.decoder_dim = args.decoder_dim
+        decoder_params.embed_dim = args.embed_dim
+        decoder_params.dropout = args.decoder_dropout
+        decoder_params.vocab_size = len(dataset.vocab)
+        decoder = AttentionDecoder(device, decoder_params)
+        decoder.fine_tune_embeddings(args.fine_tune_embedding)
+        if args.embedding_path is not None:
+            # TODO: handle pre-trained embeddings:
+            pass
 
-    # Create decoder.
-    decoder_params = AttentionDecoderParams()
-    decoder_params.attention_dim = args.attention_dim
-    decoder_params.decoder_dim = args.decoder_dim
-    decoder_params.embed_dim = args.embed_dim
-    decoder_params.dropout = args.decoder_dropout
-    decoder_params.vocab_size = len(dataset.vocab)
-    decoder = AttentionDecoder(device, decoder_params).to(device)
-    decoder.fine_tune_embeddings(args.fine_tune_embedding)
-    if args.embedding_path is not None:
-        # TODO: handle pre-trained embeddings:
-        pass
+        # Decoder optimier.
+        decoder_optimizer = torch.optim.Adam(
+            params=filter(lambda param: param.requires_grad, decoder.parameters()), 
+            lr=args.decoder_lr)
 
-    # Decoder optimier.
-    decoder_optimizer = torch.optim.Adam(
-        params=filter(lambda param: param.requires_grad, decoder.parameters()), 
-        lr=args.decoder_lr)
+        start_epoch = 0
+        metrics = {}
+    else:
+        chkpt = load_checkpoint(device, args)
+        start_epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, metrics = unpack_checkpoint(chkpt)
+        start_epoch += 1
+
+    # Move to GPU if available.
+    encoder = encoder.to(device)
+    decoder = decoder.to(device)
 
     # Criterion.
     criterion = nn.CrossEntropyLoss().to(device)
@@ -272,7 +287,9 @@ def train(device, args):
     encoder.train()
 
     num_batches = len(train_loader)
-    for epoch in range(args.epochs):
+    epoch_losses = [] if not 'epoch_losses' in metrics else metrics['epoch_losses']
+    for epoch in range(start_epoch, args.epochs):
+        batch_losses = []
 
         accum_loss = AccumulatingMetric()
         accum_time = AccumulatingMetric()
@@ -323,6 +340,7 @@ def train(device, args):
                 encoder_optimizer.step()
 
             # Statistics.
+            batch_losses.append(loss.item())
             accum_loss.update(loss.item())
             accum_time.update(time.time() - start)
             if batch_idx % args.print_freq == 0:
@@ -330,3 +348,12 @@ def train(device, args):
 
             # Reset start time.
             start = time.time()
+
+        epoch_losses.append(batch_losses)
+
+        # Save checkpoint.
+        metrics = {
+            'epoch_losses': epoch_losses
+        }
+        save_checkpoint(epoch, encoder, decoder, 
+            encoder_optimizer, decoder_optimizer, metrics)
