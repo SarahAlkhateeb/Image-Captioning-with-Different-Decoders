@@ -60,14 +60,10 @@ class COCODataset(data.Dataset):
 
         img = self._get_transformed_img(img_id)
         caption = self._numericalize_caption(caption)
-        caption_length = torch.LongTensor([len(caption)]) # Includes <end> token.
 
-        if self.mode == 'train':
-            return img, caption, caption_length
-        else:
-            all_captions = torch.LongTensor([self._numericalize_caption(ann['caption']) \
-                for ann in self._get_annotations(img_id) if len(ann['caption']) <= self.caption_max_len])
-            return img, caption, caption_length, all_captions
+        # TODO: handle validation mode.
+
+        return img, caption
 
     def __len__(self):
         # Number of captions in dataset. An image can have multiple alternative captions.

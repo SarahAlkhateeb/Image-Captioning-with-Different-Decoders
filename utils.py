@@ -1,10 +1,11 @@
 
 
 def clip_gradient(optimizer, grad_clip):
-    """
-    Clips gradients computed during backpropagation to avoid explosion of gradients.
-    :param optimizer: optimizer with the gradients to be clipped
-    :param grad_clip: clip value
+    """Clips gradients computed during backpropagation to avoid explosion of gradients.
+
+    Args:
+        optimizer: Optimizer with the gradients to be clipped.
+        grad_clip (int): Clip value
     """
     for group in optimizer.param_groups:
         for param in group['params']:

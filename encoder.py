@@ -7,7 +7,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class Encoder(nn.Module):
     """CNN encoder."""
 
-    def __init__(self, encoded_img_size=14, attention_method='ByPixel'):
+    def __init__(self):
         """Initialize encoder.
 
         Args:
@@ -15,12 +15,7 @@ class Encoder(nn.Module):
             attention_method (str): Attention method to use. Supported attentions methods are "ByPixel" and "ByChannel".
         """
 
-        assert attention_method in ['ByChannel', 'ByPixel']
-
         super(Encoder, self).__init__()
-
-        self.enc_img_size = encoded_img_size
-        self.att_method = attention_method
 
         # Load pre-trained ImageNet ResNet-101
         resnet = torchvision.models.resnet101(pretrained=True)
@@ -30,13 +25,8 @@ class Encoder(nn.Module):
         modules = list(resnet.children())[:-2]
         self.resnet = nn.Sequential(*modules)
 
-        if self.att_method == "ByChannel":
-            self.cnn1 = nn.Conv2d(in_channels=2048, out_channels=512, kernel_size=(1, 1), stride=(1, 1), bias=False)
-            self.bn1 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-            self.relu = nn.ReLU(inplace=True)
-
         # Resize image to fixed size to allow input images of variable size.
-        self.adaptive_pool = nn.AdaptiveAvgPool2d((self.enc_img_size, self.enc_img_size))
+        self.adaptive_pool = nn.AdaptiveAvgPool2d((14, 14))
 
         for param in self.resnet.parameters():
             param.requires_grad = False
@@ -52,9 +42,7 @@ class Encoder(nn.Module):
         """
 
         features = self.resnet(imgs) # (batch_size, encoder_dim, img_size/32, img_size/32)
-        if self.att_method == 'ByChannel': # (batch_size, encoder_dim, 8, 8) -> (batch_size, 512, 8, 8)
-            features = self.relu(self.bn1(self.cnn1(features)))
-        features = self.adaptive_pool(features) # (batch_size, 2048/512, 8, 8) -> (batch_size, encoder_dim/512, enc_img_size, enc_img_size)
+        features = self.adaptive_pool(features) # (batch_size, 2048/512, 8, 8) -> (batch_size, 2048/512, 14, 14)
         features = features.permute(0, 2, 3, 1)
         return features
 

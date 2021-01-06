@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torch.nn.utils.rnn import pack_padded_sequence
+from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
 from torchvision import transforms
 
 from utils import clip_gradient
@@ -75,31 +75,31 @@ class Decoder(nn.Module):
 
         super(Decoder, self).__init__()
         
-        self.enc_dim = encoder_dim
-        self.dec_dim = decoder_dim
+        self.encoder_dim = encoder_dim
+        self.decoder_dim = decoder_dim
         self.att_dim = attention_dim
         self.embed_dim = embed_dim
         self.vocab_size = vocab_size
         self.dropout_prob = dropout
 
         # Attention network.
-        self.att = Attention(self.enc_dim, self.dec_dim, self.att_dim)
+        self.attention = Attention(self.encoder_dim, self.decoder_dim, self.att_dim)
         # Embedding layer.
         self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=pad_idx)
         # Dropout layer.
         self.dropout = nn.Dropout(p=self.dropout_prob)
         # Decoding LSTMCell.
-        self.lstm = nn.LSTMCell(self.embed_dim + self.enc_dim, self.dec_dim, bias=True)
+        self.lstm = nn.LSTMCell(self.embed_dim + self.encoder_dim, self.decoder_dim, bias=True)
         # Linear layer to find initial hidden state of the LSTM cell.
-        self.init_h = nn.Linear(self.enc_dim, self.dec_dim)
+        self.init_h = nn.Linear(self.encoder_dim, self.decoder_dim)
         # Linear layer to find initial cell state of LSTM cell.
-        self.init_c = nn.Linear(self.enc_dim, self.dec_dim)
+        self.init_c = nn.Linear(self.encoder_dim, self.decoder_dim)
         # Linear layer to create a sigmoid-activated gate.
-        self.f_beta = nn.Linear(self.enc_dim, self.dec_dim)
+        self.f_beta = nn.Linear(self.encoder_dim, self.decoder_dim)
         # Sigmoid.
         self.sigmoid = nn.Sigmoid()
         # Linear layer to find scores over vocabulary.
-        self.fc = nn.Linear(self.dec_dim, vocab_size)
+        self.fc = nn.Linear(self.decoder_dim, vocab_size)
 
         # Initialize layers with the uniform distribution for easier convergence.
         self.embedding.weight.data.uniform_(-0.1, 0.1)
@@ -137,7 +137,6 @@ class Decoder(nn.Module):
         Returns:
             Hidden state and cell state.
         """
-
         mean_enc_out = encoder_out.mean(dim=1) # (batch_size, num_pixels, encoder_dim) -> (batch_size, encoder_dim)
         h = self.init_h(mean_enc_out) # (batch_size, decoder_dim)
         c = self.init_c(mean_enc_out) # (batch_size, decoder_dim)
@@ -157,11 +156,11 @@ class Decoder(nn.Module):
 
         # (batch_size, encoded_img_size, encoded_img_size, encoder_dim)/(batch_size, num_pixels, encoder_dim) -> (batch_size, num_pixels, encoder_dim)
         batch_size = encoder_out.size(0)
-        enc_dim = encoder_out.size(-1)
+        encoder_dim = encoder_out.size(-1)
         vocab_size = self.vocab_size
 
         # Flatten image -> (batch_size, num_pixels, encoder_dim)
-        encoder_out = encoder_out.view(batch_size, -1, enc_dim)
+        encoder_out = encoder_out.view(batch_size, -1, encoder_dim)
         num_pixels = encoder_out.size(1)
 
         # For each data in the batch, when len(prediction) == len(caption_lengths), stop. 
@@ -178,21 +177,40 @@ class Decoder(nn.Module):
 
         # We won't decode at the <end> position, since we have finished generating as soon as we generate <end>.
         # So, decoding lengths are atual lengths - 1.
-        decode_lengths = (caption_lengths -1).tolist()
+        decode_lengths = (caption_lengths - 1).tolist()
+        print(decode_lengths)
+        print(encoded_captions)
 
         # Create tensors to hold word prediction scores and alphas.
         predictions = torch.zeros(batch_size, max(decode_lengths), vocab_size).to(device)
         alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
 
+        print("hi")
+
         # At each time step, decode by attention-weighing the encoder's output based on the decoder's previous hidden state output
         # and then generate a new word in the decoder with the previous word and the attention-weighted encoding.
         for t in range(max(decode_lengths)):
+            print(t, max(decode_lengths))
+            print("hi")
+
+
             batch_size_t = sum([l > t for l in decode_lengths])
+
+            print(batch_size_t, num_pixels, encoder_dim)
+            
             # alpha: (batch_size_t, num_pixels)
             # att_weighted_encoding: (batch_size_t, encoder_dim)
             att_weighted_enc, alpha = self.attention(encoder_out[:batch_size_t], h[:batch_size_t])
-            gate = self.sigmoid(self.f_beta(h[:batch_size_t]))
-            att_weighted_enc *= gate
+            
+            print(alpha.shape)
+            print(att_weighted_enc.shape)
+            print(h[:batch_size_t]) # [2, 512]
+
+            # (encoder_dim, self.decoder_dim) == (2048, 512)
+            print(self.f_beta(h[:batch_size_t]).shape)
+
+            gate = self.sigmoid(self.f_beta(h[:batch_size_t]))  # gating scalar, (batch_size_t, encoder_dim)
+            att_weighted_enc = gate * att_weighted_enc
             h, c = self.lstm(torch.cat([embeddings[:batch_size_t, t, :], att_weighted_enc], dim=1), (h[:batch_size_t], c[:batch_size_t]))
             preds = self.fc(self.dropout(h)) # (batch_size_t, vocab_size)
             predictions[:batch_size_t, t, :] = preds
@@ -302,15 +320,27 @@ if __name__ == '__main__':
     batch_size = 2
 
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    img_transform = transform=transforms.Compose([normalize])
+    img_transform = transforms.Compose([
+        transforms.Resize((256, 256)), 
+        transforms.ToTensor(), 
+        normalize])
 
     dataset = COCODataset('train', img_transform, caption_max_len=25)
-
-    train_loader = torch.utils.data.DataLoader(dataset, 
-        batch_size=batch_size, shuffle=True, pin_memory=True)
-
     vocab_size = len(dataset.vocab)
     pad_idx = dataset.vocab(PAD_TOKEN)
+
+    def collate_fn(batch):
+        batch = tuple(zip(*batch))
+        imgs, captions, caption_lengths = batch[0][:], batch[1][:], batch[2][:]
+        imgs = torch.stack(imgs)
+        captions = pad_sequence(captions, batch_first=True, padding_value=pad_idx)
+        caption_lengths = torch.stack(caption_lengths)
+        return imgs, captions, caption_lengths
+
+    train_loader = torch.utils.data.DataLoader(dataset, 
+        batch_size=batch_size, shuffle=True, pin_memory=True, collate_fn=collate_fn)
+
+    
 
     model_params = Params()
     model_params.vocab_size = vocab_size
