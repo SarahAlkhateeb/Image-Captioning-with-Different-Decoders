@@ -5,8 +5,8 @@ import argparse
 import torch
 
 from pathconf import PathConfig
-from attention import train as train_attention_model
-from baseline import train as train_baseline_model
+from models.attention import train as train_attention_model
+from models.baseline import train as train_baseline_model
 
 def main():
     parser = argparse.ArgumentParser(description='Train')
