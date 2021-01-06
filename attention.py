@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
+from torchvision import transforms
 
-class AttentionDecoderParams:
-    attention_dim = 512
-    decoder_dim = 512
-    embed_dim = 512 # Use 300 if glove. 
-    dropout = 0.5
-    vocab_size = None # Must override.
+from vocabulary import PAD_TOKEN
+from dataset import COCODataset
+from encoder import Encoder
+from utils import clip_gradient
 
 class SoftAttention(nn.Module):
     """Attention network."""
@@ -44,12 +44,19 @@ class SoftAttention(nn.Module):
             Attention-weighted encoding, attention weights.
         """
         
-        att_enc = self.enc_att(encoder_out) # (batch_size_t, num_pizels, encoder_dim) -> (batch_size, num_pizels, attention_dim)
-        att_dec = self.dec_att(decoder_hidden) # (batch_size_t, decoder_dim) -> (batch_size_t, attention_dim)
-        att = self.full_att(self.relu(att_enc + att_dec.unsqueeze(1))).squeeze(2) # (batch_size_t, num_pixels, attention_dim) -> (batch_size_t, num_pixels)
-        attention_weights = self.softmax(att) # (batch_size_t, num_pixels)
-        att_weighted_enc = (encoder_out * attention_weights.unsqueeze(2)).sum(dim=1) # (batch_size_1, encoder_dim)
+        att_enc = self.enc_att(encoder_out)
+        att_dec = self.dec_att(decoder_hidden)
+        att = self.full_att(self.relu(att_enc + att_dec.unsqueeze(1))).squeeze(2)
+        attention_weights = self.softmax(att)
+        att_weighted_enc = (encoder_out * attention_weights.unsqueeze(2)).sum(dim=1)
         return att_weighted_enc, attention_weights
+
+class AttentionDecoderParams:
+    attention_dim = 512
+    decoder_dim = 512
+    embed_dim = 512 # Use 300 if glove. 
+    dropout = 0.5
+    vocab_size = None # Must override.
 
 class AttentionDecoder(nn.Module):
 
@@ -192,3 +199,107 @@ class AttentionDecoder(nn.Module):
             
         # predictionss, sorted captions, decoding lengths, attention wieghts
         return predictions, encoded_captions, decode_lengths, attention_weights
+
+def train(device, args):
+    """Trains attention model.
+
+    Args:
+        device: Device to run on.
+        args: Parsed command-line arguments from argparse.
+    """
+
+    # Dataset.
+    img_transform = transforms.Compose([
+        transforms.RandomCrop(224),
+        #transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406),
+                            (0.229, 0.224, 0.225))])
+    dataset = COCODataset(mode='train', img_transform=img_transform, caption_max_len=25)
+
+    # Dataloader.
+    pad_idx = dataset.vocab(PAD_TOKEN)
+    def collate_fn(data):
+        imgs, captions = zip(*data)
+
+        imgs = torch.stack(imgs, dim=0)
+        captions = pad_sequence(captions, batch_first=True, padding_value=pad_idx)
+        caption_lengths = [len(caption) for caption in captions]
+
+        return imgs, captions, caption_lengths
+
+    train_loader = torch.utils.data.DataLoader(
+        dataset=dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.workers,
+        collate_fn=collate_fn)
+
+    # Create encoder.
+    encoder = Encoder().to(device)
+
+    # Encoder optimizer (None if not fine-tuning encoder).
+    encoder_optimizer = torch.optim.Adam(
+        params=filter(lambda param: param.requires_grad, encoder.parameters()), 
+        lr=args.encoder_lr) if args.fine_tune_encoder else None
+
+    # Create decoder.
+    decoder_params = AttentionDecoderParams()
+    decoder_params.attention_dim = args.attention_dim
+    decoder_params.decoder_dim = args.decoder_dim
+    decoder_params.embed_dim = args.embed_dim
+    decoder_params.dropout = args.decoder_dropout
+    decoder_params.vocab_size = len(dataset.vocab)
+    decoder = AttentionDecoder(device, decoder_params).to(device)
+    decoder.fine_tune_embeddings(args.fine_tune_embedding)
+    if args.embedding_path is not None:
+        # TODO: handle pre-trained embeddings:
+        pass
+
+    # Decoder optimier.
+    decoder_optimizer = torch.optim.Adam(
+        params=filter(lambda param: param.requires_grad, decoder.parameters()), 
+        lr=args.decoder_lr)
+
+    # Criterion.
+    criterion = nn.CrossEntropyLoss().to(device)
+
+    decoder.train()
+    encoder.train()
+
+    for epoch in range(args.epochs):
+        for batch_idx, (imgs, captions, caption_lengths) in enumerate(train_loader):
+
+            # Move to GPU if available.
+            imgs = imgs.to(device)
+            captions = captions.to(device)
+
+            # Encode.
+            img_features = encoder(imgs)
+
+            # Decode.
+            scores, captions_sorted, decode_lengths, attention_weights = decoder(img_features, captions, caption_lengths)
+
+            # Since we decoded starting with a START_TOKEN, the targets are all words after START_TOKEN, up to END_TOKEN.
+            targets = captions_sorted[:, 1:]
+
+            # Remove timesteps that we didn't decode at, or are pads.
+            # pack_padded_sequence is an easy trick to do this.
+            scores = pack_padded_sequence(scores, decode_lengths, batch_first=True).data
+            targets = pack_padded_sequence(targets, decode_lengths, batch_first=True).data 
+
+            # Compute loss.
+            loss = criterion(scores, targets).to(device)
+
+            # Add doubly stochastic attention regularization.
+            loss += ((args.alpha_c - attention_weights.sum(dim=1)) ** 2).mean()
+
+            decoder_optimizer.zero_grad()
+            loss.backward()
+
+            # Gradient clip decoder.
+            clip_gradient(decoder_optimizer, args.grad_clip)
+            
+            decoder_optimizer.step()
+
+            print(f'Loss: {loss.item()}')
