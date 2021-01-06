@@ -40,12 +40,15 @@ def train(self, device, num_epochs, train_loader, model_params, fine_tune_encode
     decoder.fine_tune_embeddings(on=fine_tune_embeddings)
     decoder = decoder.to(device)
 
+    # Create
+    # criterion
+
     for epoch in range(num_epochs):
         for batch_idx, batch in enumerate(train_loader):
 
             img_features = encoder(imgs)
 
-            scores, captions_sorted, decode_lengths, alphas, sort_ind = self.decoder(img_features, captions, caption_lengths)
+            scores, captions_sorted, decode_lengths, alphas, sort_ind = decoder(img_features, captions, caption_lengths)
         
             # Since we decoded starting with a START_TOKEN, the targets are all words after START_TOKEN, up to END_TOKEN.
             targets = captions_sorted[:, 1:]
@@ -238,7 +241,7 @@ class Decoder(nn.Module):
 
         # For each data in the batch, when len(prediction) == len(caption_lengths), stop. 
         # Therefore, sort input data by decreasing lengths. 
-        caption_lengths = sort_ind = caption_lengths.squeeze(1).sort(dim=0, descending=True)
+        caption_lengths, sort_ind = caption_lengths.squeeze(1).sort(dim=0, descending=True)
         encoder_out = encoder_out[sort_in]
         encoded_captions = encoded_captions[sort_ind]
 
@@ -248,8 +251,8 @@ class Decoder(nn.Module):
         # Initialize LSTM state
         h, c = self.init_hidden_state(encoder_out) # (batch_size, decoder_dim)
 
-        # We won't decoder at the <end> position, since we have finished generating as soon as we generate <end>.
-        # So, decoding lengths are atual lengths -1.
+        # We won't decode at the <end> position, since we have finished generating as soon as we generate <end>.
+        # So, decoding lengths are atual lengths - 1.
         decode_lengths = (caption_lengths -1).tolist()
 
         # Create tensors to hold word prediction scores and alphas.
