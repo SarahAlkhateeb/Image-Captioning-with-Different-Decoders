@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 import torch.nn.functional as F
-from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
+from torch.nn.utils.rnn import pad_sequence
 from torchvision import transforms
 
 from vocabulary import PAD_TOKEN
@@ -18,30 +18,35 @@ from train_utils import clip_gradient
 from checkpoint import save_checkpoint, load_checkpoint, unpack_checkpoint
 from embed import load_glove_vectors
 
+class BaselineDecoderParams:
+    hidden_size = 512
+    embed_size = 512 # Use 300 if glove.
+    vocab_size = None # Must override.
+
 class BaselineDecoder(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab_size, encoder_dim=2048):
+    def __init__(self, params):
         """Initialize baseline model.
 
         Args:
-            encoder_dim (int): Feature size of encoded images.
-            embed_size (int): Size of the Embeddings.
-            hidden_size (int): Size of the hidden layer.
-            vocab_size(int): Size of the Vocabulary.
+            params (BaselineDecoderParams): Parameters for decoder.
         """
         super().__init__()
 
-        self.embed_size = embed_size
+        assert isinstance(params, BaselineDecoderParams)
+        assert params.vocab_size is not None
+
+        self.embed_size = params.embed_size
 
         # Keep track of hidden_size for initialization of hidden state
-        self.hidden_size = hidden_size
+        self.hidden_size = params.hidden_size
 
         # Embedding layer that turns words into a vector of a specified size
-        self.embedding = nn.Embedding(vocab_size, embed_size)
+        self.embedding = nn.Embedding(params.vocab_size, params.embed_size)
 
         # The LSTM takes embedded word vectors (of a specified size) as input
         # and outputs hidden states of size hidden_dim
-        self.lstm = nn.LSTM(input_size=embed_size,
-                            hidden_size=hidden_size,  # LSTM hidden units
+        self.lstm = nn.LSTM(input_size=params.embed_size,
+                            hidden_size=params.hidden_size,  # LSTM hidden units
                             num_layers=1,  # number of LSTM layer
                             bias=True,  # use bias weights b_ih and b_hh
                             batch_first=True,  # input & output will have batch size as 1st dimension
@@ -49,11 +54,8 @@ class BaselineDecoder(nn.Module):
                             bidirectional=False)  # unidirectional LSTM
 
         # The linear layer that maps the hidden state output dimension
-        # to the number of words we want as output, vocab_size
-        self.linear = nn.Linear(hidden_size, vocab_size)
-
-        # linear layer to transform encoder output to embedding dimension
-        self.img_features_transform = nn.Linear(encoder_dim, embed_size)
+        # to the number of words we want as output, the vocab_size.
+        self.linear = nn.Linear(params.hidden_size, params.vocab_size)
 
     def load_pretrained_embeddins(self, embeddings):
         """Loads embedding layer with pre-trained embeddings.
@@ -145,7 +147,7 @@ def train(device, args):
     if args.checkpoint is None:
         # Initialize encoder/decoder models and optimizers.
         # Encoder.
-        encoder = Encoder(args.embed_dim)
+        encoder = Encoder(args.embed_size)
 
         # Encoder optimizer; None if not fine-tuning encoder.
         encoder_optimizer = torch.optim.Adam(
@@ -154,8 +156,11 @@ def train(device, args):
             lr=args.encoder_lr) if args.fine_tune_encoder else None
 
         # Create decoder.
-        decoder = BaselineDecoder(
-            args.embed_dim, args.decoder_dim, len(dataset.vocab))
+        params = BaselineDecoderParams()
+        params.embed_size = args.embed_size
+        params.hidden_size = args.decoder_dim
+        params.vocab_size = len(dataset.vocab)
+        decoder = BaselineDecoder(params)
         if args.use_glove:
             glove = load_glove_vectors()
             decoder.load_pretrained_embeddins(glove)

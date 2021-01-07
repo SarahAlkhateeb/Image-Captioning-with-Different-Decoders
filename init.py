@@ -1,17 +1,20 @@
-from embed import generate_glove_vectors
-from vocabulary import build_vocab, save_vocab
-import nltk
+
+
 import argparse
 import sys
-from pathconf import PathConfig
+sys.path.append('cocoapi/PythonAPI/')
 import socket
 import ssl
 hostname = socket.gethostname()
 if 'shannon' in hostname or 'markov' in hostname:
     # Need this when downloading on university cluster...
     ssl._create_default_https_context = ssl._create_unverified_context
-sys.path.append('cocoapi/PythonAPI/')
+import nltk
 nltk.download('punkt')
+
+from pathconf import PathConfig
+from embed import generate_glove_vectors
+from vocabulary import build_vocab, save_vocab
 
 
 if __name__ == '__main__':
@@ -22,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('--vocab_threshold', nargs='?', type=int,
                         default=6, help='Vocabulary frequency threshold.')
     parser.add_argument('--glove', nargs='?', type=bool,
-                        default=False, help='Generat glove vectors.')
+                        default=False, help='Generate glove vectors.')
     args = parser.parse_args()
 
     if args.vocab:

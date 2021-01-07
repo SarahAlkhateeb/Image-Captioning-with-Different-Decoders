@@ -4,10 +4,11 @@ import torchvision
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 class Encoder(nn.Module):
     """CNN encoder."""
 
-    def __init__(self, embed_dim):
+    def __init__(self, embed_size):
         """Initialize encoder.
 
         Args:
@@ -18,7 +19,7 @@ class Encoder(nn.Module):
         resnet = torchvision.models.resnet101(pretrained=True)
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
-        self.embed = nn.Linear(resnet.fc.in_features, embed_dim)
+        self.embed = nn.Linear(resnet.fc.in_features, embed_size)
 
         for param in self.resnet.parameters():
             param.requires_grad = False
@@ -36,8 +37,6 @@ class Encoder(nn.Module):
         features = self.resnet(imgs)
         features = features.view(features.size(0), -1)
         features = self.embed(features)
-
-        print(features.shape)
         return features
 
     def fine_tune(self, on=True):

@@ -1,11 +1,11 @@
-from models.baseline import train as train_baseline_model
-from models.attention import train as train_attention_model
-from pathconf import PathConfig
-import torch
-import argparse
-import os
 import sys
 sys.path.append('cocoapi/PythonAPI/')
+import os
+import argparse
+import torch
+from pathconf import PathConfig
+from models.attention import train as train_attention_model
+from models.baseline import train as train_baseline_model
 
 
 def main():
@@ -20,7 +20,7 @@ def main():
                         default=512, help='decoder dimension.')
     parser.add_argument('--decoder_dropout', type=float,
                         default=0.5, help='decoder dropout probability.')
-    parser.add_argument('--embed_dim', type=int, default=512,
+    parser.add_argument('--embed_size', type=int, default=512,
                         help='embedding dimension. If using pre-trained glove vectors, use 300.')
     parser.add_argument('--epochs', type=int, default=1,
                         help='number of epochs to train for (if early stopping is not triggered).')
@@ -54,7 +54,7 @@ def main():
         raise SystemError(
             'Must run "python init.py --vocab True" before training.')
 
-    if args.use_glove and not os.path.exists(PathConfig.glove_words.pkl):
+    if args.use_glove and not os.path.exists(PathConfig.glove_vectors):
         raise SystemError(
             'Must run "python init.py --glove True" when using glove vectors.')
 

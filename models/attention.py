@@ -62,10 +62,9 @@ class SoftAttention(nn.Module):
 class AttentionDecoderParams:
     attention_dim = 512
     decoder_dim = 512
-    embed_dim = 512  # Use 300 if glove.
+    embed_size = 512  # Use 300 if glove.
     dropout = 0.5
     vocab_size = None  # Must override.
-
 
 class AttentionDecoder(nn.Module):
 
@@ -85,7 +84,7 @@ class AttentionDecoder(nn.Module):
 
         self.encoder_dim = 2048  # Set in stone.
         self.attention_dim = params.attention_dim
-        self.embed_dim = params.embed_dim
+        self.embed_size = params.embed_size
         self.decoder_dim = params.decoder_dim
         self.vocab_size = params.vocab_size
         self.dropout = params.dropout
@@ -97,7 +96,7 @@ class AttentionDecoder(nn.Module):
         # Decoder layers
         self.dropout = nn.Dropout(p=self.dropout)
         self.decode_step = nn.LSTMCell(
-            self.embed_dim + self.encoder_dim, self.decoder_dim, bias=True)
+            self.embed_size + self.encoder_dim, self.decoder_dim, bias=True)
         self.h_lin = nn.Linear(self.encoder_dim, self.decoder_dim)
         self.c_lin = nn.Linear(self.encoder_dim, self.decoder_dim)
         self.f_beta = nn.Linear(self.decoder_dim, self.encoder_dim)
@@ -105,7 +104,7 @@ class AttentionDecoder(nn.Module):
         self.fc = nn.Linear(self.decoder_dim, self.vocab_size)
 
         # Embedding layer
-        self.embedding = nn.Embedding(params.vocab_size, self.embed_dim)
+        self.embedding = nn.Embedding(params.vocab_size, self.embed_size)
 
         # Initialize layers with uniform distribution for easier convergence.
         self.fc.bias.data.fill_(0)
@@ -273,7 +272,7 @@ def train(device, args):
         decoder_params = AttentionDecoderParams()
         decoder_params.attention_dim = args.attention_dim
         decoder_params.decoder_dim = args.decoder_dim
-        decoder_params.embed_dim = args.embed_dim
+        decoder_params.embed_size = args.embed_size
         decoder_params.dropout = args.decoder_dropout
         decoder_params.vocab_size = len(dataset.vocab)
         decoder = AttentionDecoder(device, decoder_params)
