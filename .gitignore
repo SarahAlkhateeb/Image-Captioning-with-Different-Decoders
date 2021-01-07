@@ -10,3 +10,5 @@ nltk_data/*
 checkpoints/*
 !checkpoints/.gitkeep
 .DS_Store
+glove.6B/*
+!glove.6B/.gitkeep

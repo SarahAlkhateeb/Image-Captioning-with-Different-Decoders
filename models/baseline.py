@@ -16,6 +16,8 @@ from models.encoder import Encoder
 from metric import AccumulatingMetric
 from train_utils import clip_gradient
 from checkpoint import save_checkpoint, load_checkpoint, unpack_checkpoint
+from glove_embeds import load_glove_vectors
+
 
 
 class BaselineDecoder(nn.Module):
@@ -55,6 +57,29 @@ class BaselineDecoder(nn.Module):
 
         # linear layer to transform encoder output to embedding dimension
         self.img_features_transform = nn.Linear(encoder_dim, embed_size)
+
+    def load_pretrained_embeddins(self, embeddings):
+        """Loads embedding layer with pre-trained embeddings.
+
+        Args:
+            embeddings: Pre-trained embeddings.
+        """
+
+        # Embeddings could the the glove_vectors for example
+        self.embedding.weight = nn.Parameter(embeddings)
+
+    def fine_tune_embeddings(self, on=True):
+        """Whether to allow fine-tuning of embedding layer.
+
+        Only makes sense to not allow if using pre-trained embeddings. 
+        Fine-tuning embeddings is the default behaviour of the decoder.
+
+        Args:
+            on (bool): Switch fine-tuning on or off.
+        """
+
+        for param in self.embedding.parameters():
+            param.requires_grad = on
 
     def forward(self, img_features, captions):
         """ Define the feedforward behavior of the model """
@@ -124,6 +149,10 @@ def train(device, args):
 
         # Create decoder.
         decoder = BaselineDecoder(args.embed_dim, args.decoder_dim, len(dataset.vocab))
+        if arg.use_glove:
+            glove= load_glove_vectors()
+            decoder.load_pretrained_embeddins(glove)
+        decoder.fine_tune_embeddings(on=args.fine_tune_embedding)
 
         # Decoder optimier.
         decoder_optimizer = torch.optim.Adam(
