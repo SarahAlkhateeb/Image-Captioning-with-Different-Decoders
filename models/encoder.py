@@ -7,7 +7,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class Encoder(nn.Module):
     """CNN encoder."""
 
-    def __init__(self):
+    def __init__(self, embed_dim=None):
         """Initialize encoder.
 
         Args:
@@ -20,13 +20,16 @@ class Encoder(nn.Module):
         # Load pre-trained ImageNet ResNet-101
         resnet = torchvision.models.resnet101(pretrained=True)
 
-        # Remove linear and pool layers (top two layers) since we are not doing classification.
-        # Specifically, remove: AdaptiveAvgPool2d(output_size=(1,1)) and Linear(in_features=2048, out_features=1000, bias=True)
-        modules = list(resnet.children())[:-2]
-        self.resnet = nn.Sequential(*modules)
-
-        # Resize image to fixed size to allow input images of variable size.
-        self.adaptive_pool = nn.AdaptiveAvgPool2d((14, 14))
+        if embed_dim is not None:
+            modules = list(resnet.children())[:-1]
+            self.resnet = nn.Sequential(*modules)
+            self.adaptive_pool = None
+            self.embed = nn.Linear(resnet.fc.in_features, embed_dim)
+        else:
+            modules = list(resnet.children())[:-2]
+            self.resnet = nn.Sequential(*modules)
+            self.adaptive_pool = nn.AdaptiveAvgPool2d((14, 14))
+            self.embed = None
 
         for param in self.resnet.parameters():
             param.requires_grad = False
@@ -41,9 +44,14 @@ class Encoder(nn.Module):
             Encoded images of dimension (batch_size, encoded_img_size, encoded_img_size, 2048)
         """
 
-        features = self.resnet(imgs) # (batch_size, encoder_dim, img_size/32, img_size/32)
-        features = self.adaptive_pool(features) # (batch_size, 2048/512, 8, 8) -> (batch_size, 2048/512, 14, 14)
-        features = features.permute(0, 2, 3, 1)
+        features = self.resnet(imgs)
+        if self.embed is not None:
+            features = features.view(features.size(0), -1)
+            features = self.embed(features)
+        else:
+            features = self.adaptive_pool(features)
+            features = features.permute(0, 2, 3, 1)
+           
         return features
 
     def fine_tune(self, on=True):

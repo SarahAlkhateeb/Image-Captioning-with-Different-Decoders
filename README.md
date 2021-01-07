@@ -43,3 +43,12 @@ Run ```python init.py --vocab True```.
 ### Confirm
 
 Run ```python dataset.py```
+
+
+## References
+
+* https://github.com/sankalp1999/Image_Captioning_With_Attention/blob/main/model.py
+* https://github.com/aladdinpersson/Machine-Learning-Collection/blob/master/ML/Pytorch/more_advanced/image_captioning/train.py
+* https://github.com/sauravraghuvanshi/Udacity-Computer-Vision-Nanodegree-Program/blob/master/project_2_image_captioning_project/model.py
+* https://github.com/ajamjoom/Image-Captions/blob/master/main.py
+* https://github.com/RoyalSkye/Image-Caption/blob/master/train.py

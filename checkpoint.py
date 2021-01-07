@@ -56,4 +56,3 @@ def save_checkpoint(args, epoch, encoder, decoder, encoder_optimizer, decoder_op
     torch.save(state, path)
     if verbose:
         print(f'Saved checkpoint to {path}')
-

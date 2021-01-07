@@ -29,7 +29,7 @@ def train_img_transform():
         transforms.ToTensor(), 
         normalize])
 
-def train_baseline_model(num_epochs=1, batch_size=32, num_workers=0, pin_memory=True):
+def train(num_epochs=1, batch_size=32, num_workers=0, pin_memory=True):
     device = torch.device('cpu') # torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # Create dataset.
