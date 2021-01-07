@@ -1,9 +1,10 @@
 import os
 
+
 class PathConfig:
     """Global paths."""
 
-    pkldata_dir = 'pkldata' 
+    pkldata_dir = 'pkldata'
     vocab_file = os.path.join(pkldata_dir, 'vocab.pkl')
 
     anno_dir = os.path.join('cocoapi', 'annotations')
@@ -14,5 +15,4 @@ class PathConfig:
     val_img_dir = os.path.join(img_dir, 'val2014')
 
     glove = 'glove.6B'
-    glove_vectors =  os.path.join(glove, 'val2014')
-    
+    glove_vectors = os.path.join(glove, 'val2014')

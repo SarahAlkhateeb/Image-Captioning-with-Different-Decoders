@@ -1,24 +1,28 @@
+from embed import generate_glove_vectors
+from vocabulary import build_vocab, save_vocab
+import nltk
+import argparse
+import sys
+from pathconf import PathConfig
 import socket
 import ssl
 hostname = socket.gethostname()
-if 'shannon' in hostname or 'markov' in hostname: 
+if 'shannon' in hostname or 'markov' in hostname:
     # Need this when downloading on university cluster...
     ssl._create_default_https_context = ssl._create_unverified_context
-from pathconf import PathConfig
-import sys
 sys.path.append('cocoapi/PythonAPI/')
-import argparse
-import nltk
 nltk.download('punkt')
 
-from vocabulary import build_vocab, save_vocab
-from embed import generate_glove_vectors
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Create resized dataset and vocabulary.')
-    parser.add_argument('--vocab', nargs='?', type=bool, default=False, help='Build vocabulary.')
-    parser.add_argument('--vocab_threshold', nargs='?', type=int, default=6, help='Vocabulary frequency threshold.')
-    parser.add_argument('--glove', nargs='?', type=bool, default=False, help='Generat glove vectors.')
+    parser = argparse.ArgumentParser(
+        description='Create resized dataset and vocabulary.')
+    parser.add_argument('--vocab', nargs='?', type=bool,
+                        default=False, help='Build vocabulary.')
+    parser.add_argument('--vocab_threshold', nargs='?', type=int,
+                        default=6, help='Vocabulary frequency threshold.')
+    parser.add_argument('--glove', nargs='?', type=bool,
+                        default=False, help='Generat glove vectors.')
     args = parser.parse_args()
 
     if args.vocab:
@@ -29,4 +33,3 @@ if __name__ == '__main__':
 
     if args.glove:
         generate_glove_vectors()
-

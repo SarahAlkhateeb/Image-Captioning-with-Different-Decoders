@@ -1,17 +1,19 @@
+import torch
+import bcolz
+from scipy import misc
+import numpy as np
 import pickle
 from pathconf import PathConfig
 import sys
 sys.path.append('cocoapi/PythonAPI/')
-import numpy as np
-from scipy import misc
-import bcolz
-import torch
+
 
 def generate_glove_vectors():
     words = []
     idx = 0
     w2i = {}
-    vectors = bcolz.carray(np.zeros(1), rootdir='glove.6B/6B.300.dat', mode='w')
+    vectors = bcolz.carray(
+        np.zeros(1), rootdir='glove.6B/6B.300.dat', mode='w')
 
     with open('glove.6B/glove.6B.300d.txt', 'rb') as f:
         for l in f:
@@ -22,8 +24,9 @@ def generate_glove_vectors():
             idx += 1
             vect = np.array(line[1:]).astype(np.float)
             vectors.append(vect)
-        
-    vectors = bcolz.carray(vectors[1:].reshape((400000, 300)), rootdir='glove.6B/6B.300.dat', mode='w')
+
+    vectors = bcolz.carray(vectors[1:].reshape(
+        (400000, 300)), rootdir='glove.6B/6B.300.dat', mode='w')
     vectors.flush()
     pickle.dump(words, open('glove.6B/6B.300_words.pkl', 'wb'))
     pickle.dump(w2i, open('glove.6B/6B.300_idx.pkl', 'wb'))
@@ -45,15 +48,17 @@ def generate_glove_vectors():
     words_found = 0
 
     for i, word in enumerate(vocab.i2w):
-        try: 
+        try:
             weights_matrix[i] = glove[word]
             words_found += 1
         except KeyError:
             weights_matrix[i] = np.random.normal(scale=0.6, size=(300, ))
 
-    pickle.dump(weights_matrix, open(PathConfig.glove_vectors, 'wb'), protocol=2)
+    pickle.dump(weights_matrix, open(
+        PathConfig.glove_vectors, 'wb'), protocol=2)
 
     print('weights_matrix is created')
+
 
 def load_glove_vectors():
     glove_vectors = pickle.load(open(PathConfig.glove_vectors, 'rb'))

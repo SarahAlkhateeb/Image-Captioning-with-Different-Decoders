@@ -1,6 +1,3 @@
-
-
-
 def clip_gradient(optimizer, grad_clip):
     """Clips gradients computed during backpropagation to avoid explosion of gradients.
 

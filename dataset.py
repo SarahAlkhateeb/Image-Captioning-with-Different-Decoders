@@ -1,14 +1,14 @@
+from pathconf import PathConfig
+from pycocotools.coco import COCO
+from PIL import Image
+from vocabulary import load_vocab, START_TOKEN, END_TOKEN
+import torch.utils.data as data
+import torch
+import os
+import nltk
 import sys
 sys.path.append('cocoapi/PythonAPI/')
-import nltk
-import os
-import torch
-import torch.utils.data as data
-from vocabulary import load_vocab, START_TOKEN, END_TOKEN
-from PIL import Image
-from pycocotools.coco import COCO
 
-from pathconf import PathConfig
 
 class COCODataset(data.Dataset):
     def __init__(self, mode, img_transform=None, caption_max_len=50):
@@ -24,12 +24,13 @@ class COCODataset(data.Dataset):
         self.coco = COCO(self.anno_file)
         self.img_ids = list(sorted(self.coco.imgs.keys()))
         self.caption_img_mappings = self._build_caption_img_mappings()
-    
+
     def _build_caption_img_mappings(self):
         mappings = []
         for img_id in self.img_ids:
             anns = self._get_annotations(img_id)
-            mapping = [{'caption': ann['caption'], 'img_id': img_id} for ann in anns if len(ann['caption']) <= self.caption_max_len]
+            mapping = [{'caption': ann['caption'], 'img_id': img_id}
+                       for ann in anns if len(ann['caption']) <= self.caption_max_len]
             mappings.extend(mapping)
 
         return mappings
@@ -69,11 +70,13 @@ class COCODataset(data.Dataset):
         # Number of captions in dataset. An image can have multiple alternative captions.
         return len(self.caption_img_mappings)
 
+
 def get_anno_file(mode):
     if mode == 'train':
         return PathConfig.train_anno_file
     else:
         return PathConfig.val_anno_file
+
 
 def get_img_dir(mode):
     if mode == 'train':
@@ -81,6 +84,9 @@ def get_img_dir(mode):
     else:
         return PathConfig.val_img_dir
 
+
 if __name__ == '__main__':
-    print(len(COCODataset('train', caption_max_len=25))) # 11 captions with caption_max_len=25
-    print(len(COCODataset('val', caption_max_len=25))) # 4 captions with caption_max_len=25 
+    # 11 captions with caption_max_len=25
+    print(len(COCODataset('train', caption_max_len=25)))
+    # 4 captions with caption_max_len=25
+    print(len(COCODataset('val', caption_max_len=25)))

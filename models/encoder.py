@@ -28,7 +28,7 @@ class Encoder(nn.Module):
 
         Args:
             imgs (torch.Tensor): A tensor of dimension (batch_size, 3, img_size, img_size).
-        
+
         Returns:
             Embedded image feature vectors of dimension (batch_size, embed_dim)
         """
@@ -50,6 +50,7 @@ class Encoder(nn.Module):
         for conv_block in list(self.resnet.children())[5:]:
             for param in conv_block.parameters():
                 param.requires_grad = on
+
 
 class EncoderAttention(nn.Module):
     """CNN encoder."""
@@ -79,7 +80,7 @@ class EncoderAttention(nn.Module):
 
         Args:
             imgs (torch.Tensor): A tensor of dimension (batch_size, 3, img_size, img_size).
-        
+
         Returns:
             Encoded images of dimension (batch_size, encoded_img_size, encoded_img_size, 2048)
         """

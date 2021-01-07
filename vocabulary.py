@@ -5,10 +5,11 @@ import pickle
 
 from pathconf import PathConfig
 
-PAD_TOKEN = '<pad>' # Padding
-START_TOKEN = '<start>' # Start of sentence
-END_TOKEN = '<end>' # End of sentence
-UNK_TOKEN = '<unk>' # Out of vocabulary (unknown)
+PAD_TOKEN = '<pad>'  # Padding
+START_TOKEN = '<start>'  # Start of sentence
+END_TOKEN = '<end>'  # End of sentence
+UNK_TOKEN = '<unk>'  # Out of vocabulary (unknown)
+
 
 class Vocabulary(object):
     """Represents vocabulary."""
@@ -31,6 +32,7 @@ class Vocabulary(object):
 
     def __len__(self):
         return len(self.w2i)
+
 
 def build_vocab(threshold=6):
     # Compute word frquencies from captions.
@@ -56,9 +58,11 @@ def build_vocab(threshold=6):
 
     return vocab
 
+
 def save_vocab(vocab):
     with open(PathConfig.vocab_file, 'wb') as f:
         pickle.dump(vocab, f)
+
 
 def load_vocab():
     with open(PathConfig.vocab_file, 'rb') as f:
