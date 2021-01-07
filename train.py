@@ -54,9 +54,11 @@ def main():
         raise SystemError(
             'Must run "python init.py --vocab True" before training.')
 
-    if args.use_glove and not os.path.exists(PathConfig.glove_vectors):
-        raise SystemError(
-            'Must run "python init.py --glove True" when using glove vectors.')
+    if args.use_glove:
+        if not os.path.exists(PathConfig.glove_vectors):
+            raise SystemError(
+                'Must run "python init.py --glove True" when using glove vectors.')
+        assert args.embed_size == 300
 
     if args.model == 'baseline':
         print('Training baseline model...')

@@ -61,6 +61,7 @@ def generate_glove_vectors():
 
 
 def load_glove_vectors():
+    print('Loading glove vectors.')
     glove_vectors = pickle.load(open(PathConfig.glove_vectors, 'rb'))
     glove_vectors = torch.tensor(glove_vectors)
     return glove_vectors
