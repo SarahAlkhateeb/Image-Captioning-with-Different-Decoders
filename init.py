@@ -35,4 +35,5 @@ if __name__ == '__main__':
         print(f'Vocabulary saved to {PathConfig.vocab_file}.')
 
     if args.glove:
+        # Don't forget to: "conda install -c anaconda bcolz"
         generate_glove_vectors()
