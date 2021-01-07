@@ -223,7 +223,7 @@ def train(device, args):
                             (0.229, 0.224, 0.225))])
     dataset = COCODataset(mode='train', img_transform=img_transform, caption_max_len=25)
 
-    # Collate function for datalaoader.
+    # Collate function for dataloader.
     pad_idx = dataset.vocab(PAD_TOKEN)
     def collate_fn(data):
         imgs, captions = zip(*data)
@@ -253,18 +253,18 @@ def train(device, args):
             params=filter(lambda param: param.requires_grad, encoder.parameters()), 
             lr=args.encoder_lr) if args.fine_tune_encoder else None
 
-        # Create decoder.
+        # Decoder.
         decoder_params = AttentionDecoderParams()
         decoder_params.attention_dim = args.attention_dim
         decoder_params.decoder_dim = args.decoder_dim
         decoder_params.embed_dim = args.embed_dim
         decoder_params.dropout = args.decoder_dropout
         decoder_params.vocab_size = len(dataset.vocab)
-        decoder = AttentionDecoder(device, decoder_params)
-        decoder.fine_tune_embeddings(args.fine_tune_embedding)
+        decoder = AttentionDecoder(device, decoder_params)   
         if args.embedding_path is not None:
             # TODO: handle pre-trained embeddings:
             pass
+        decoder.fine_tune_embeddings(args.fine_tune_embedding)
 
         # Decoder optimier.
         decoder_optimizer = torch.optim.Adam(
