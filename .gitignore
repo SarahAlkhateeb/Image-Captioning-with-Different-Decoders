@@ -9,3 +9,4 @@ nltk_data/*
 !nltk_data/.gitkeep
 checkpoints/*
 !checkpoints/.gitkeep
+.DS_Store
