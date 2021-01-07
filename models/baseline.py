@@ -112,24 +112,33 @@ def train(device, args):
         num_workers=args.workers,
         collate_fn=collate_fn)
 
-    # Encoder.
-    encoder = Encoder(args.embed_dim)
+    if args.checkpoint is None:
+        # Initialize encoder/decoder models and optimizers.
+        # Encoder.
+        encoder = Encoder(args.embed_dim)
 
-    # Encoder optimizer; None if not fine-tuning encoder.
-    encoder_optimizer = torch.optim.Adam(
-        params=filter(lambda param: param.requires_grad, encoder.parameters()), 
-        lr=args.encoder_lr) if args.fine_tune_encoder else None
+        # Encoder optimizer; None if not fine-tuning encoder.
+        encoder_optimizer = torch.optim.Adam(
+            params=filter(lambda param: param.requires_grad, encoder.parameters()), 
+            lr=args.encoder_lr) if args.fine_tune_encoder else None
 
-    # Create decoder.
-    decoder = BaselineDecoder(args.embed_dim, args.decoder_dim, len(dataset.vocab))
+        # Create decoder.
+        decoder = BaselineDecoder(args.embed_dim, args.decoder_dim, len(dataset.vocab))
 
-    # Decoder optimier.
-    decoder_optimizer = torch.optim.Adam(
-        params=filter(lambda param: param.requires_grad, decoder.parameters()), 
-        lr=args.decoder_lr)
+        # Decoder optimier.
+        decoder_optimizer = torch.optim.Adam(
+            params=filter(lambda param: param.requires_grad, decoder.parameters()), 
+            lr=args.decoder_lr)
 
-    start_epoch = 0
-    metrics = {}
+        start_epoch = 0
+        metrics = {}
+    
+    else:
+        # Load encoder/decoder models and optimizers from checkpoint.
+        chkpt = load_checkpoint(device, args)
+        start_epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, metrics = unpack_checkpoint(chkpt)
+        start_epoch += 1
+
 
     # Move to GPU if available.
     encoder = encoder.to(device)
@@ -173,9 +182,9 @@ def train(device, args):
             loss.backward()
 
             # Clip gradients.
-            """ clip_gradient(decoder_optimizer, args.grad_clip)
+            clip_gradient(decoder_optimizer, args.grad_clip)
             if encoder_optimizer is not None:
-                clip_gradient(encoder_optimizer, args.grad_clip) """
+                clip_gradient(encoder_optimizer, args.grad_clip)
             
             # Update weights.
             decoder_optimizer.step()
@@ -195,11 +204,11 @@ def train(device, args):
         epoch_losses.append(batch_losses)
 
         # Save checkpoint.
-        """ metrics = {
+        metrics = {
             'epoch_losses': epoch_losses
         }
         save_checkpoint(args, epoch, encoder, decoder, 
-            encoder_optimizer, decoder_optimizer, metrics) """
+            encoder_optimizer, decoder_optimizer, metrics)
 
     print(f'Model {args.model_name} finished training for {args.epochs} epochs.')
 
