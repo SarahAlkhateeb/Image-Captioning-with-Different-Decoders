@@ -5,6 +5,7 @@
 #pip install bcolz
 #then run Run the glove_embeds.py file - this will generate glove_words.pkl in the glove.6B folder
 import pickle
+from pathconf import PathConfig
 
 import os
 import sys
@@ -38,7 +39,7 @@ def generate_glove_vectors():
     pickle.dump(words, open('glove.6B/6B.300_words.pkl', 'wb'))
     pickle.dump(w2i, open('glove.6B/6B.300_idx.pkl', 'wb'))
 
-    with open('vocab.pkl', 'rb') as f:
+    with open(PathConfig.vocab_file, 'rb') as f:
         vocab = pickle.load(f)
 
     print('Loading vocab...')
