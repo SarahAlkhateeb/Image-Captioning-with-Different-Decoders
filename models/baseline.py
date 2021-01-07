@@ -92,7 +92,7 @@ class BaselineDecoder(nn.Module):
 
         # Stack the features and captions
         # embeddings new shape : (batch_size, caption length, embed_size)
-        embeddings = torch.cat((img_features.unsqueeze(1), embeddings), dim=1)
+        embeddings = torch.cat((img_features.unsqueeze(1).float(), embeddings.float()), dim=1)
 
         # Get the output and hidden state by passing the lstm over our word embeddings
         # the lstm takes in our embeddings and hidden state
