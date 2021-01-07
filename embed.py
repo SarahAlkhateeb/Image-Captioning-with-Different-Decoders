@@ -1,19 +1,8 @@
-#This script processes and generates GloVe embeddings
-#taken from: https://github.com/ajamjoom/Image-Captions/blob/master/glove_embeds.py
-#run "wget -P glove.6B http://nlp.stanford.edu/data/glove.6B.zip"
-#unzip
-#pip install bcolz
-#then run Run the glove_embeds.py file - this will generate glove_words.pkl in the glove.6B folder
 import pickle
 from pathconf import PathConfig
-
-import os
 import sys
 sys.path.append('cocoapi/PythonAPI/')
-#from vocabulary import Vocabulary
-
 import numpy as np
-import json
 from scipy import misc
 import bcolz
 import torch
@@ -62,13 +51,11 @@ def generate_glove_vectors():
         except KeyError:
             weights_matrix[i] = np.random.normal(scale=0.6, size=(300, ))
 
-    pickle.dump(weights_matrix, open('glove.6B/glove_words.pkl', 'wb'), protocol=2)
+    pickle.dump(weights_matrix, open(PathConfig.glove_vectors, 'wb'), protocol=2)
 
     print('weights_matrix is created')
 
 def load_glove_vectors():
-    
-    glove_vectors = pickle.load(open('glove.6B/glove_words.pkl', 'rb'))
+    glove_vectors = pickle.load(open(PathConfig.glove_vectors, 'rb'))
     glove_vectors = torch.tensor(glove_vectors)
-
     return glove_vectors

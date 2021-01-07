@@ -12,16 +12,13 @@ import nltk
 nltk.download('punkt')
 
 from vocabulary import build_vocab, save_vocab
-from glove_embeds import generate_glove_vectors
+from embed import generate_glove_vectors
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create resized dataset and vocabulary.')
-    parser.add_argument('--vocab', nargs='?', type=bool, default=False,
-        help='Build vocabulary.')
-    parser.add_argument('--vocab_threshold', nargs='?', type=int, default=6,
-        help='Vocabulary frequency threshold.')
-    parser.add_argument('--glove', nargs='?', type=bool, default=False,
-        help='Generat glove vectors.')
+    parser.add_argument('--vocab', nargs='?', type=bool, default=False, help='Build vocabulary.')
+    parser.add_argument('--vocab_threshold', nargs='?', type=int, default=6, help='Vocabulary frequency threshold.')
+    parser.add_argument('--glove', nargs='?', type=bool, default=False, help='Generat glove vectors.')
     args = parser.parse_args()
 
     if args.vocab:

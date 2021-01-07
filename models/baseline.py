@@ -16,14 +16,11 @@ from models.encoder import Encoder
 from metric import AccumulatingMetric
 from train_utils import clip_gradient
 from checkpoint import save_checkpoint, load_checkpoint, unpack_checkpoint
-from glove_embeds import load_glove_vectors
-
-
+from embed import load_glove_vectors
 
 class BaselineDecoder(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab_size,encoder_dim=2048):
+    def __init__(self, embed_size, hidden_size, vocab_size, encoder_dim=2048):
         """Initialize baseline model.
-        
 
         Args:
             encoder_dim (int): Feature size of encoded images.
@@ -44,12 +41,12 @@ class BaselineDecoder(nn.Module):
         # The LSTM takes embedded word vectors (of a specified size) as input
         # and outputs hidden states of size hidden_dim
         self.lstm = nn.LSTM(input_size=embed_size,
-                            hidden_size=hidden_size, # LSTM hidden units 
-                            num_layers=1, # number of LSTM layer
-                            bias=True, # use bias weights b_ih and b_hh
+                            hidden_size=hidden_size,  # LSTM hidden units
+                            num_layers=1,  # number of LSTM layer
+                            bias=True,  # use bias weights b_ih and b_hh
                             batch_first=True,  # input & output will have batch size as 1st dimension
-                            dropout=0, # Not applying dropout 
-                            bidirectional=False) # unidirectional LSTM
+                            dropout=0,  # Not applying dropout
+                            bidirectional=False)  # unidirectional LSTM
 
         # The linear layer that maps the hidden state output dimension
         # to the number of words we want as output, vocab_size
@@ -83,49 +80,57 @@ class BaselineDecoder(nn.Module):
 
     def forward(self, img_features, captions):
         """ Define the feedforward behavior of the model """
-        
+
         # Discard the <end> word to avoid predicting when <end> is the input of the RNN
         captions = captions[:, :-1]
-                
+
         # Create embedded word vectors for each word in the captions
-        embeddings = self.embedding(captions) # embeddings new shape : (batch_size, captions length - 1, embed_size)
-    
+        # embeddings new shape : (batch_size, captions length - 1, embed_size)
+        embeddings = self.embedding(captions)
+
         # Stack the features and captions
-        embeddings = torch.cat((img_features.unsqueeze(1), embeddings), dim=1) # embeddings new shape : (batch_size, caption length, embed_size)
+        # embeddings new shape : (batch_size, caption length, embed_size)
+        embeddings = torch.cat((img_features.unsqueeze(1), embeddings), dim=1)
 
         # Get the output and hidden state by passing the lstm over our word embeddings
         # the lstm takes in our embeddings and hidden state
-        lstm_out, _ = self.lstm(embeddings) # lstm_out shape : (batch_size, caption length, hidden_size)
+        # lstm_out shape : (batch_size, caption length, hidden_size)
+        lstm_out, _ = self.lstm(embeddings)
 
         # Fully connected layer
-        outputs = self.linear(lstm_out) # outputs shape : (batch_size, caption length, vocab_size)
+        # outputs shape : (batch_size, caption length, vocab_size)
+        outputs = self.linear(lstm_out)
 
         return outputs
 
 
 def train(device, args):
     """Trains attention model.
+
     Args:
-    device: Device to run on.
-    args: Parsed command-line arguments from argparse.
+        device: Device to run on.
+        args: Parsed command-line arguments from argparse.
     """
 
     # Dataset.
     img_transform = transforms.Compose([
-    transforms.RandomCrop(224),
-    #transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize((0.485, 0.456, 0.406),
-                        (0.229, 0.224, 0.225))])
-    dataset = COCODataset(mode='train', img_transform=img_transform, caption_max_len=25)
+        transforms.RandomCrop(224),
+        # transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406),
+                             (0.229, 0.224, 0.225))])
+    dataset = COCODataset(
+        mode='train', img_transform=img_transform, caption_max_len=25)
 
     # Collate function for datalaoader.
     pad_idx = dataset.vocab(PAD_TOKEN)
+
     def collate_fn(data):
         imgs, captions = zip(*data)
 
         imgs = torch.stack(imgs, dim=0)
-        captions = pad_sequence(captions, batch_first=True, padding_value=pad_idx)
+        captions = pad_sequence(
+            captions, batch_first=True, padding_value=pad_idx)
 
         return imgs, captions
 
@@ -144,37 +149,40 @@ def train(device, args):
 
         # Encoder optimizer; None if not fine-tuning encoder.
         encoder_optimizer = torch.optim.Adam(
-            params=filter(lambda param: param.requires_grad, encoder.parameters()), 
+            params=filter(lambda param: param.requires_grad,
+                          encoder.parameters()),
             lr=args.encoder_lr) if args.fine_tune_encoder else None
 
         # Create decoder.
-        decoder = BaselineDecoder(args.embed_dim, args.decoder_dim, len(dataset.vocab))
-        if arg.use_glove:
-            glove= load_glove_vectors()
+        decoder = BaselineDecoder(
+            args.embed_dim, args.decoder_dim, len(dataset.vocab))
+        if args.use_glove:
+            glove = load_glove_vectors()
             decoder.load_pretrained_embeddins(glove)
         decoder.fine_tune_embeddings(on=args.fine_tune_embedding)
 
         # Decoder optimier.
         decoder_optimizer = torch.optim.Adam(
-            params=filter(lambda param: param.requires_grad, decoder.parameters()), 
+            params=filter(lambda param: param.requires_grad,
+                          decoder.parameters()),
             lr=args.decoder_lr)
 
         start_epoch = 0
         metrics = {}
-    
     else:
         # Load encoder/decoder models and optimizers from checkpoint.
         chkpt = load_checkpoint(device, args)
-        start_epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, metrics = unpack_checkpoint(chkpt)
+        start_epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, metrics = unpack_checkpoint(
+            chkpt)
         start_epoch += 1
-
 
     # Move to GPU if available.
     encoder = encoder.to(device)
     decoder = decoder.to(device)
 
     # Criterion.
-    criterion = nn.CrossEntropyLoss(ignore_index=dataset.vocab(PAD_TOKEN)).to(device)
+    criterion = nn.CrossEntropyLoss(
+        ignore_index=dataset.vocab(PAD_TOKEN)).to(device)
 
     decoder.train()
     encoder.train()
@@ -202,7 +210,8 @@ def train(device, args):
             scores = decoder(img_features, captions)
 
             # Compute loss.
-            loss = criterion(scores.reshape(-1, scores.shape[2]), captions.reshape(-1)).to(device)
+            loss = criterion(
+                scores.reshape(-1, scores.shape[2]), captions.reshape(-1)).to(device)
 
             # Back propagation.
             decoder_optimizer.zero_grad()
@@ -214,7 +223,7 @@ def train(device, args):
             clip_gradient(decoder_optimizer, args.grad_clip)
             if encoder_optimizer is not None:
                 clip_gradient(encoder_optimizer, args.grad_clip)
-            
+
             # Update weights.
             decoder_optimizer.step()
             if encoder_optimizer is not None:
@@ -225,7 +234,8 @@ def train(device, args):
             accum_loss.update(loss.item())
             accum_time.update(time.time() - start)
             if batch_idx % args.print_freq == 0:
-                print(f'Epoch {epoch+1}/{args.epochs}, Batch {batch_idx+1}/{num_batches}, Loss {accum_loss.avg():.4f}, Time: {accum_time.val:.4f}')
+                print(
+                    f'Epoch {epoch+1}/{args.epochs}, Batch {batch_idx+1}/{num_batches}, Loss {accum_loss.avg():.4f}, Time: {accum_time.val:.4f}')
 
             # Reset start time.
             start = time.time()
@@ -236,17 +246,7 @@ def train(device, args):
         metrics = {
             'epoch_losses': epoch_losses
         }
-        save_checkpoint(args, epoch, encoder, decoder, 
-            encoder_optimizer, decoder_optimizer, metrics)
+        save_checkpoint(args, epoch, encoder, decoder,
+                        encoder_optimizer, decoder_optimizer, metrics)
 
     print(f'Model {args.model_name} finished training for {args.epochs} epochs.')
-
-    
-
-
-
-
-
-
-
-

@@ -5,6 +5,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
 from torchvision import transforms
 
 from vocabulary import PAD_TOKEN
+from embed import load_glove_vectors
 from dataset import COCODataset
 from models.encoder import EncoderAttention
 from metric import AccumulatingMetric
@@ -107,9 +108,6 @@ class AttentionDecoder(nn.Module):
         # Default behaviour is to fine-tune embeddings. If using pre-trained embeddings
         # you might not want fine-tuning.
         self.fine_tune_embeddings(on=True)
-
-    def __name__(self):
-        return 'att_dec'
             
     def load_pretrained_embeddins(self, embeddings):
         """Loads embedding layer with pre-trained embeddings.
@@ -261,9 +259,9 @@ def train(device, args):
         decoder_params.dropout = args.decoder_dropout
         decoder_params.vocab_size = len(dataset.vocab)
         decoder = AttentionDecoder(device, decoder_params)   
-        if args.embedding_path is not None:
-            # TODO: handle pre-trained embeddings:
-            pass
+        if args.use_glove:
+            glove = load_glove_vectors()
+            decoder.load_pretrained_embeddins(glove)
         decoder.fine_tune_embeddings(args.fine_tune_embedding)
 
         # Decoder optimier.

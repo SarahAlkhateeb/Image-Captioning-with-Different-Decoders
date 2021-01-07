@@ -12,18 +12,14 @@ class Encoder(nn.Module):
 
         Args:
             encoded_img_size (int): Output size.
-            attention_method (str): Attention method to use. Supported attentions methods are "ByPixel" and "ByChannel".
         """
 
         super(Encoder, self).__init__()
-
-        # Load pre-trained ImageNet ResNet-101
         resnet = torchvision.models.resnet101(pretrained=True)
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
         self.embed = nn.Linear(resnet.fc.in_features, embed_dim)
 
-        # TODO:
         for param in self.resnet.parameters():
             param.requires_grad = False
 
@@ -34,12 +30,14 @@ class Encoder(nn.Module):
             imgs (torch.Tensor): A tensor of dimension (batch_size, 3, img_size, img_size).
         
         Returns:
-            TODO
+            Embedded image feature vectors of dimension (batch_size, embed_dim)
         """
 
         features = self.resnet(imgs)
         features = features.view(features.size(0), -1)
         features = self.embed(features)
+
+        print(features.shape)
         return features
 
     def fine_tune(self, on=True):

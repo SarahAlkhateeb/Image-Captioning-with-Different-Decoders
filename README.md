@@ -22,6 +22,12 @@ You need to download all necessary data and put the data into expected directori
 
 Finally, unzip the files (e.g. using ```unzip```).
 
+Download glove embeddings by running:
+
+```wget -P glove.6B http://nlp.stanford.edu/data/glove.6B.zip```
+
+Then, unzip glove.6B.zip.
+
 ### NLTK Data
 
 We use nltk's word tokenizer and store nltk data locally in this directory. Run:
