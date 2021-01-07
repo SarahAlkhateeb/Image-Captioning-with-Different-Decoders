@@ -6,7 +6,7 @@ from torchvision import transforms
 
 from vocabulary import PAD_TOKEN
 from dataset import COCODataset
-from models.encoder import Encoder
+from models.encoder import EncoderAttention
 from metric import AccumulatingMetric
 from train_utils import clip_gradient
 from checkpoint import save_checkpoint, load_checkpoint, unpack_checkpoint
@@ -246,7 +246,7 @@ def train(device, args):
         # Initialize encoder/decoder models and optimizers.
 
         # Encoder.
-        encoder = Encoder()
+        encoder = EncoderAttention()
 
         # Encoder optimizer; None if not fine-tuning encoder.
         encoder_optimizer = torch.optim.Adam(
