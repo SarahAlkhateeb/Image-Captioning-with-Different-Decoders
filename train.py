@@ -46,6 +46,8 @@ def main():
                         help='print training/validation stats every __ batches.')
     parser.add_argument('--use_glove', type=bool, default=False,
                         help='whether to use pre-trained glove embeddings.')
+    parser.add_argument('--max_caption_length', type=int, default=50,
+                        help='only use captions with caption length <= 50 when training.')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

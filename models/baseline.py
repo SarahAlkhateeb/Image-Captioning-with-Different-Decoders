@@ -30,6 +30,7 @@ class BaselineDecoder(nn.Module):
         Args:
             params (BaselineDecoderParams): Parameters for decoder.
         """
+
         super().__init__()
 
         assert isinstance(params, BaselineDecoderParams)
@@ -64,7 +65,6 @@ class BaselineDecoder(nn.Module):
             embeddings: Pre-trained embeddings.
         """
 
-        # Embeddings could the the glove_vectors for example
         self.embedding.weight = nn.Parameter(embeddings)
 
     def fine_tune_embeddings(self, on=True):
@@ -81,7 +81,15 @@ class BaselineDecoder(nn.Module):
             param.requires_grad = on
 
     def forward(self, img_features, captions):
-        """ Define the feedforward behavior of the model """
+        """Forward propagation.
+        
+        Args:
+            img_features (torch.Tensor): Embedded image feature vectors of dimension (batch_size, embed_dim).
+            captions (torch.Tensor): Encoded captions. A tensor of dimension (batch_size, max_caption_length).
+
+        Returns:
+            Caption scores of dimension (batch_size, caption length, vocab_size).
+        """
 
         # Discard the <end> word to avoid predicting when <end> is the input of the RNN
         captions = captions[:, :-1]
@@ -99,8 +107,7 @@ class BaselineDecoder(nn.Module):
         # lstm_out shape : (batch_size, caption length, hidden_size)
         lstm_out, _ = self.lstm(embeddings)
 
-        # Fully connected layer
-        # outputs shape : (batch_size, caption length, vocab_size)
+        # Final output.
         outputs = self.linear(lstm_out)
 
         return outputs
@@ -122,11 +129,10 @@ def train(device, args):
         transforms.Normalize((0.485, 0.456, 0.406),
                              (0.229, 0.224, 0.225))])
     dataset = COCODataset(
-        mode='train', img_transform=img_transform, caption_max_len=25)
+        mode='train', img_transform=img_transform, caption_max_len=args.max_caption_length)
 
     # Collate function for datalaoader.
     pad_idx = dataset.vocab(PAD_TOKEN)
-
     def collate_fn(data):
         imgs, captions = zip(*data)
 
@@ -146,6 +152,7 @@ def train(device, args):
 
     if args.checkpoint is None:
         # Initialize encoder/decoder models and optimizers.
+
         # Encoder.
         encoder = Encoder(args.embed_size)
 

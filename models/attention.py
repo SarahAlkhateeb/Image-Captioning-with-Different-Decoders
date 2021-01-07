@@ -186,6 +186,7 @@ class AttentionDecoder(nn.Module):
         # Initialize predictions tensor.
         predictions = torch.zeros(
             batch_size, max_decode_lengths, vocab_size).to(self.device)
+            
         # Initialize weights tensor (softmax output in attention)
         attention_weights = torch.zeros(
             batch_size, max_decode_lengths, num_pixels).to(self.device)
@@ -233,7 +234,7 @@ def train(device, args):
         transforms.Normalize((0.485, 0.456, 0.406),
                              (0.229, 0.224, 0.225))])
     dataset = COCODataset(
-        mode='train', img_transform=img_transform, caption_max_len=25)
+        mode='train', img_transform=img_transform, caption_max_len=args.max_caption_length)
 
     # Collate function for dataloader.
     pad_idx = dataset.vocab(PAD_TOKEN)

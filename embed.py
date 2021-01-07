@@ -1,6 +1,5 @@
 import torch
 import bcolz
-from scipy import misc
 import numpy as np
 import pickle
 from pathconf import PathConfig

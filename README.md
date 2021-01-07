@@ -10,6 +10,10 @@ From checkpoint:
 
 ```python train.py 'basic_att' --model 'attention' --batch_size 4 --epochs 3 --checkpoint 'basic_att_1.pth.tar'```
 
+Using pre-trained glove embeddings:
+
+```python train.py 'glove_baseline' --model 'baseline' --batch_size 4 --epochs 1 --use_glove True --fine_tune_embedding True --embed_size 300```
+
 ## Setup
 
 ### Download data
