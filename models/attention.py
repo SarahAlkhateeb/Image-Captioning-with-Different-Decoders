@@ -3,8 +3,9 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
 from torchvision import transforms
+from nltk.translate.bleu_score import corpus_bleu
 
-from vocabulary import PAD_TOKEN
+from vocabulary import END_TOKEN, PAD_TOKEN, START_TOKEN
 from embed import load_glove_vectors
 from dataset import COCODataset
 from models.encoder import EncoderAttention
@@ -384,3 +385,148 @@ def train(device, args):
                         encoder_optimizer, decoder_optimizer, metrics)
 
     print(f'Model {args.model_name} finished training for {args.epochs} epochs.')
+
+
+def validate(device, args):
+    """Validate attention model.
+
+    Args:
+        device: Device to run on.
+        args: Parsed command-line arguments from argparse.
+    """
+
+
+    # Dataset.
+    img_transform = transforms.Compose([
+        transforms.RandomCrop(224),
+        # transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406),
+                             (0.229, 0.224, 0.225))])
+    dataset = COCODataset(
+        mode='val', img_transform=img_transform, caption_max_len=args.max_caption_length)
+
+    # Collate function for dataloader.
+    pad_idx = dataset.vocab(PAD_TOKEN)
+
+    def collate_fn(data):
+        imgs, captions = zip(*data)
+
+        imgs = torch.stack(imgs, dim=0)
+        captions = pad_sequence(
+            captions, batch_first=True, padding_value=pad_idx)
+        caption_lengths = [len(caption) for caption in captions]
+
+        return imgs, captions, caption_lengths
+
+    # Dataloader.
+    val_loader = torch.utils.data.DataLoader(
+        dataset=dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.workers,
+        collate_fn=collate_fn)
+
+    assert args.checkpoint is  not None, "Load model from checkpoint for validation."
+    
+    # Load encoder/decoder models and optimizers from checkpoint.
+    chkpt = load_checkpoint(device, args)
+    start_epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, metrics = unpack_checkpoint(
+        chkpt)
+    start_epoch += 1
+
+    # Move to GPU if available.
+    encoder = encoder.to(device)
+    decoder = decoder.to(device)
+
+    # Criterion.
+    criterion = nn.CrossEntropyLoss().to(device)
+
+    references = [] 
+    test_references = []
+    hypotheses = [] 
+    
+
+    print("Started validation...")
+    decoder.eval()
+    encoder.eval()
+
+    
+    accum_loss = AccumulatingMetric()
+    accum_time = AccumulatingMetric()
+
+    start = time.time()
+
+    PAD= dataset.vocab(PAD_TOKEN)
+    START=dataset.vocab(START_TOKEN)
+    END=dataset.vocab(END_TOKEN)
+
+    num_batches = len(val_loader)
+    # Batches
+    for batch_idx, (imgs, captions, caption_lengths) in enumerate(val_loader):
+
+        # Move to GPU if available.
+        imgs = imgs.to(device)
+        captions = captions.to(device)
+
+        # Encode.
+        img_features = encoder(imgs)
+
+        # Decode.
+        scores, captions_sorted, decode_lengths, attention_weights = decoder(
+            img_features, captions, caption_lengths)
+
+        # Since we decoded starting with a START_TOKEN, the targets are all words after START_TOKEN, up to END_TOKEN
+        # (i.e. we remove START_TOKEN and include END_TOKEN).
+        targets = captions_sorted[:, 1:]
+
+        # Remove timesteps that we didn't decode at, or are pads.
+        # pack_padded_sequence is an easy trick to do this.
+        scores = pack_padded_sequence(
+            scores, decode_lengths, batch_first=True).data
+        targets = pack_padded_sequence(
+            targets, decode_lengths, batch_first=True).data
+        
+        # Compute loss.
+        loss = criterion(scores, targets).to(device)
+        loss += ((args.alpha_c - attention_weights.sum(dim=1)) ** 2).mean() # Add doubly stochastic attention regularization.
+        accum_loss.update(loss.item())
+        
+
+         # References
+        for j in range(targets.shape[0]):
+            img_caps = targets[j].tolist() # validation dataset only has 1 unique caption per img
+            clean_cap = [w for w in img_caps if w not in [PAD, START, END]]  # remove pad, start, and end
+            img_captions = list(map(lambda c: clean_cap,img_caps))
+            test_references.append(clean_cap)
+            references.append(img_captions)
+
+        # Hypotheses
+        _, preds = torch.max(scores, dim=2)
+        preds = preds.tolist()
+        temp_preds = list()
+        for j, p in enumerate(preds):
+            pred = p[:decode_lengths[j]]
+            pred = [w for w in pred if w not in [PAD, START, END]]
+            temp_preds.append(pred)  # remove pads, start, and end
+        preds = temp_preds
+        hypotheses.extend(preds)
+        
+    accum_time.update(time.time() - start)   
+    bleu_4 = corpus_bleu(references, hypotheses)
+
+    
+    #hyp_sentence = []
+    #for word_idx in hypotheses[k]:
+       # hyp_sentence.append(vocab.idx2word[word_idx])
+    
+    #ref_sentence = []
+    #for word_idx in test_references[k]:
+       # ref_sentence.append(vocab.idx2word[word_idx])
+
+    
+    print("Completed validation...")
+    
+    print(f'Validation loss: {accum_loss.avg():.4f}, BLEU_4: {bleu_4},  Time: {accum_time.val:.4f}')
+    print('Hypotheses: '+" ".join(hyp_sentence))
+    #print('References: '+" ".join(ref_sentence))
