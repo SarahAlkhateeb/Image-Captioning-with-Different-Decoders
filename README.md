@@ -8,7 +8,7 @@ From scratch:
 
 From checkpoint:
 
-```python train.py 'basic_att' --model 'attention' --batch_size 4 --epochs 3 --checkpoint 'basic_att_1.pth.tar --max_caption_length 25'```
+```python train.py 'basic_att' --model 'attention' --batch_size 4 --epochs 3 --checkpoint 'basic_att_1.pth.tar' --max_caption_length 25```
 
 Using pre-trained glove embeddings:
 
