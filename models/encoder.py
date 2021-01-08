@@ -4,6 +4,14 @@ import torchvision
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+def _load_resnet101_model():
+    # Pre-requisite:
+    # Run "wget https://download.pytorch.org/models/resnet101-5d3b4d8f.pth -O resnet101.pth"
+    # in the model directory.
+    model = torchvision.models.resnet101(pretrained=False)
+    state_dict = torch.load('model/resnet101.pth')
+    model.load_state_dict(state_dict)
+    return model
 
 class Encoder(nn.Module):
     """CNN encoder."""
@@ -16,7 +24,11 @@ class Encoder(nn.Module):
         """
 
         super(Encoder, self).__init__()
-        resnet = torchvision.models.resnet101(pretrained=True)
+        
+        # Cannot download resnet101 from torchvision due to certificate failure
+        # on the cluster I'm running on. If you can, simply replace 
+        # with resnet = torchvision.models.resnet101(pretrained=True)
+        resnet = _load_resnet101_model()
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
         self.embed = nn.Linear(resnet.fc.in_features, embed_size)
@@ -64,8 +76,10 @@ class EncoderAttention(nn.Module):
 
         super(EncoderAttention, self).__init__()
 
-        # Load pre-trained ImageNet ResNet-101
-        resnet = torchvision.models.resnet101(pretrained=True)
+        # Cannot download resnet101 from torchvision due to certificate failure
+        # on the cluster I'm running on. If you can, simply replace 
+        # with resnet = torchvision.models.resnet101(pretrained=True)
+        resnet = _load_resnet101_model()
 
         modules = list(resnet.children())[:-2]
         self.resnet = nn.Sequential(*modules)
