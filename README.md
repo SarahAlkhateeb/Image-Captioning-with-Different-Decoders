@@ -40,7 +40,7 @@ We use nltk's word tokenizer and store nltk data locally in this directory. Run:
 
 ### ResNet101 Model
 
-The encoder uses a pre-trained CNN. If on university cluster, run
+The encoder uses a pre-trained CNN. If on university cluster, stand in models dir and run 
 
 ```wget https://download.pytorch.org/models/resnet101-5d3b4d8f.pth -O resnet101.pth```
 
