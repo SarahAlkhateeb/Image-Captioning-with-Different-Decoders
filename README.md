@@ -4,15 +4,15 @@
 
 From scratch:
 
-```python train.py 'basic_att' --model 'attention' --batch_size 4 --epochs 3```
+```python train.py 'basic_att' --model 'attention' --batch_size 4 --epochs 3 --max_caption_length 25```
 
 From checkpoint:
 
-```python train.py 'basic_att' --model 'attention' --batch_size 4 --epochs 3 --checkpoint 'basic_att_1.pth.tar'```
+```python train.py 'basic_att' --model 'attention' --batch_size 4 --epochs 3 --checkpoint 'basic_att_1.pth.tar --max_caption_length 25'```
 
 Using pre-trained glove embeddings:
 
-```python train.py 'glove_baseline' --model 'baseline' --batch_size 4 --epochs 1 --use_glove True --fine_tune_embedding True --embed_size 300```
+```python train.py 'glove_baseline' --model 'baseline' --batch_size 4 --epochs 1 --use_glove True --fine_tune_embedding True --embed_size 300 --max_caption_length 25```
 
 ## Setup
 
