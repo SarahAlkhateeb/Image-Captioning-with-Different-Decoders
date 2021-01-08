@@ -512,7 +512,8 @@ def validate(device, args):
         preds = temp_preds
         hypotheses.extend(preds)
         
-    accum_time.update(time.time() - start)   
+    accum_time.update(time.time() - start)
+    #compute blue 4 score (we use uniform weights to count with all n-grams up to n=4)   
     bleu_4 = corpus_bleu(references, hypotheses)
 
     
