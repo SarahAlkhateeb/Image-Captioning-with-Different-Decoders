@@ -9,7 +9,7 @@ def _load_resnet101_model():
     # Run "wget https://download.pytorch.org/models/resnet101-5d3b4d8f.pth -O resnet101.pth"
     # in the model directory.
     model = torchvision.models.resnet101(pretrained=False)
-    state_dict = torch.load('model/resnet101.pth')
+    state_dict = torch.load('models/resnet101.pth')
     model.load_state_dict(state_dict)
     return model
 
