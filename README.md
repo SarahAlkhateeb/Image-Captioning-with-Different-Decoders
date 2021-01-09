@@ -16,6 +16,10 @@ Using pre-trained glove embeddings:
 
 ## Setup
 
+## COCO API
+
+Go to cocoapi/PythonAPI and run ```make```.
+
 ### Download data
 
 You need to download all necessary data and put the data into expected directories. Download the dataset by running the following commands:
