@@ -4,8 +4,9 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
 from torchvision import transforms
 from nltk.translate.bleu_score import corpus_bleu
+from pytorch_pretrained_bert import BertTokenizer, BertModel # pip install pytorch-pretrained-bert
 
-from vocabulary import END_TOKEN, PAD_TOKEN, START_TOKEN
+from vocabulary import END_TOKEN, PAD_TOKEN, START_TOKEN, Vocabulary
 from embed import load_glove_vectors
 from dataset import COCODataset
 from models.encoder import EncoderAttention
@@ -63,9 +64,10 @@ class SoftAttention(nn.Module):
 class AttentionDecoderParams:
     attention_dim = 512
     decoder_dim = 512
-    embed_size = 512  # Use 300 if glove.
+    embed_size = 512  # Use 300 if glove and 768 if BERT.
     dropout = 0.5
-    vocab_size = None  # Must override.
+    use_bert = False
+    vocab = None  # Must override.
 
 class AttentionDecoder(nn.Module):
 
@@ -79,7 +81,7 @@ class AttentionDecoder(nn.Module):
         super(AttentionDecoder, self).__init__()
 
         assert isinstance(params, AttentionDecoderParams)
-        assert params.vocab_size is not None
+        assert isinstance(params.vocab, Vocabulary)
 
         self.device = device
 
@@ -87,8 +89,15 @@ class AttentionDecoder(nn.Module):
         self.attention_dim = params.attention_dim
         self.embed_size = params.embed_size
         self.decoder_dim = params.decoder_dim
-        self.vocab_size = params.vocab_size
+        self.vocab = params.vocab
+        self.vocab_size = len(self.vocab)
         self.dropout = params.dropout
+
+        self.use_bert = params.use_bert
+        if self.use_bert:
+            self.bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+            self.bert_model = BertModel.from_pretrained('bert-base-uncased').to(self.device)
+            self.bert_model.eval()
 
         # Soft attention
         self.attention = SoftAttention(
@@ -105,7 +114,7 @@ class AttentionDecoder(nn.Module):
         self.fc = nn.Linear(self.decoder_dim, self.vocab_size)
 
         # Embedding layer
-        self.embedding = nn.Embedding(params.vocab_size, self.embed_size)
+        self.embedding = nn.Embedding(self.vocab_size, self.embed_size)
 
         # Initialize layers with uniform distribution for easier convergence.
         self.fc.bias.data.fill_(0)
@@ -154,6 +163,58 @@ class AttentionDecoder(nn.Module):
         c = self.c_lin(mean_enc_out)
         return h, c
 
+    def _create_bert_embeddings(self, encoded_captions):
+        embeddings = []
+        for encoded_caption in encoded_captions:
+            caption = ' '.join([self.vocab.i2w[token.item()] for token in encoded_caption])
+            caption = u'[CLS] '+ caption
+            
+            tokenized_caption = self.bert_tokenizer.tokenize(caption)                
+            indexed_tokens = self.bert_tokenizer.convert_tokens_to_ids(tokenized_caption)
+            tokens_tensor = torch.tensor([indexed_tokens]).to(self.device)
+
+            with torch.no_grad():
+                encoded_layers, _ = self.bert_model(tokens_tensor)
+
+            bert_embedding = encoded_layers[11].squeeze(0)
+            
+            split_caption = caption.split()
+            tokens_embedding = []
+            j = 0
+
+            for full_token in split_caption:
+                curr_token = ''
+                x = 0
+                for i, _ in enumerate(tokenized_caption[1:]): # disregard CLS
+                    token = tokenized_caption[i+j]
+                    piece_embedding = bert_embedding[i+j]
+                    
+                    # full token
+                    if token == full_token and curr_token == '' :
+                        tokens_embedding.append(piece_embedding)
+                        j += 1
+                        break
+                    else: # partial token
+                        x += 1
+                        
+                        if curr_token == '':
+                            tokens_embedding.append(piece_embedding)
+                            curr_token += token.replace('#', '')
+                        else:
+                            tokens_embedding[-1] = torch.add(tokens_embedding[-1], piece_embedding)
+                            curr_token += token.replace('#', '')
+                            
+                            if curr_token == full_token: # end of partial
+                                j += x
+                                break                            
+
+            caption_embedding = torch.stack(tokens_embedding)
+            embeddings.append(caption_embedding)
+  
+        embeddings = torch.stack(embeddings)
+        return embeddings
+
+
     def forward(self, encoder_out, encoded_captions, caption_lengths):
         """Forward propagation.
 
@@ -178,8 +239,12 @@ class AttentionDecoder(nn.Module):
         # Get max decode lengths.
         max_decode_lengths = max(decode_lengths)
 
-        # Load embeddings.
-        embeddings = self.embedding(encoded_captions)
+        if self.use_bert:
+            # Use BERT embeddings.
+            embeddings = self._create_bert_embeddings(encoded_captions)
+        else:
+            # Use regular embeddings.
+            embeddings = self.embedding(encoded_captions)
 
         # Initialize hidden and cell states of LSTM.
         h, c = self.init_hidden_state(encoder_out)
@@ -276,7 +341,8 @@ def train(device, args):
         decoder_params.decoder_dim = args.decoder_dim
         decoder_params.embed_size = args.embed_size
         decoder_params.dropout = args.decoder_dropout
-        decoder_params.vocab_size = len(dataset.vocab)
+        decoder_params.vocab = dataset.vocab
+        decoder_params.use_bert = args.use_bert
         decoder = AttentionDecoder(device, decoder_params)
         if args.use_glove:
             glove = load_glove_vectors()
@@ -398,7 +464,7 @@ def validate(device, args):
 
     # Dataset.
     img_transform = transforms.Compose([
-        transforms.RandomCrop(224),
+        transforms.Resize(224),
         # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406),

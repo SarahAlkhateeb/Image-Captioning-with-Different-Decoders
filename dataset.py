@@ -1,4 +1,6 @@
 from pathconf import PathConfig
+import sys
+sys.path.append('cocoapi/PythonAPI/')
 from pycocotools.coco import COCO
 from PIL import Image
 from vocabulary import load_vocab, START_TOKEN, END_TOKEN
@@ -8,7 +10,6 @@ import os
 import nltk
 import sys
 sys.path.append('cocoapi/PythonAPI/')
-
 
 class COCODataset(data.Dataset):
     def __init__(self, mode, img_transform=None, caption_max_len=50):
@@ -87,6 +88,6 @@ def get_img_dir(mode):
 
 if __name__ == '__main__':
     # 11 captions with caption_max_len=25
-    print(len(COCODataset('train', caption_max_len=25)))
+    print(len(COCODataset('train', caption_max_len=35)))
     # 4 captions with caption_max_len=25
-    print(len(COCODataset('val', caption_max_len=25)))
+    print(len(COCODataset('val', caption_max_len=35)))

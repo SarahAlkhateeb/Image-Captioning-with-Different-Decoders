@@ -62,10 +62,11 @@ def main():
         if not os.path.exists(PathConfig.glove_vectors):
             raise SystemError(
                 'Must run "python init.py --glove True" when using glove vectors.')
-        assert args.embed_size == 300
+        assert args.embed_size == 300, 'Expected embedding size of 300 for glove vectors.'
 
     if args.use_bert:
         assert args.model == 'attention', 'BERT is only used for attention model.'
+        assert args.embed_size == 768, 'Expected embedding size of 768 for BERT.'
 
     if args.model == 'baseline':
         print('Training baseline model...')
