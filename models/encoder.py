@@ -3,8 +3,6 @@ import torch
 from torch import nn
 import torchvision
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 def _load_resnet101_model():
     hostname = socket.gethostname()
     if 'shannon' in hostname or 'markov' in hostname:
