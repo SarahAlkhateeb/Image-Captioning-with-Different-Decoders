@@ -15,4 +15,4 @@ class PathConfig:
     val_img_dir = os.path.join(img_dir, 'val2014')
 
     glove = 'glove.6B'
-    glove_vectors = os.path.join(glove, 'val2014')
+    glove_vectors = os.path.join(glove, 'glove_vectors.pkl')
