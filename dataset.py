@@ -19,7 +19,7 @@ class COCODataset(data.Dataset):
         self.img_transform = img_transform
         self.vocab = load_vocab()
         # Note, using a caption_max_len of 50 will half the training and validation sets.
-        self.caption_max_len = caption_max_len
+        self.caption_max_len = caption_max_len if not caption_max_len == -1 else float('inf')
         self.anno_file = get_anno_file(mode)
         self.img_dir = get_img_dir(mode)
         self.coco = COCO(self.anno_file)

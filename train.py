@@ -46,7 +46,7 @@ def main():
                         help='print training/validation stats every __ batches.')
     parser.add_argument('--use_glove', type=bool, default=False,
                         help='whether to use pre-trained glove embeddings.')
-    parser.add_argument('--max_caption_length', type=int, default=50,
+    parser.add_argument('--max_caption_length', type=int, default=-1,
                         help='only use captions with caption length <= 50 when training.')
     parser.add_argument('--use_bert', type=bool,
                         default=False, help='whether to use BERT embeddigns for attention model.')
