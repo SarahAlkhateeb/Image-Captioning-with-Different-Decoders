@@ -80,4 +80,7 @@ def main():
 
 
 if __name__ == '__main__':
+    # Note: BERT embeddings for attention model will take about 2 hours when 
+    # max caption length is 35 (~10k captions) and about 45 hours when max
+    # caption length is 50 (~40k captions or half of the dataset).
     main()
