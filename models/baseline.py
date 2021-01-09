@@ -120,7 +120,7 @@ def train(device, args):
 
     # Dataset.
     img_transform = transforms.Compose([
-        transforms.RandomCrop(224),
+        transforms.Resize((224, 224)),
         # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406),
@@ -196,6 +196,7 @@ def train(device, args):
     decoder.train()
     encoder.train()
 
+    train_start = time.time()
     num_batches = len(train_loader)
     epoch_losses = [] if not 'epoch_losses' in metrics else metrics['epoch_losses']
     for epoch in range(start_epoch, args.epochs):
@@ -258,4 +259,5 @@ def train(device, args):
         save_checkpoint(args, epoch, encoder, decoder,
                         encoder_optimizer, decoder_optimizer, metrics)
 
-    print(f'Model {args.model_name} finished training for {args.epochs} epochs.')
+    train_time = time.time() - train_start
+    print(f'Model {args.model_name} finished training for {args.epochs} epochs in {train_time:.4f} seconds.')
