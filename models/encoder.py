@@ -1,3 +1,4 @@
+import socket
 import torch
 from torch import nn
 import torchvision
@@ -5,12 +6,16 @@ import torchvision
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def _load_resnet101_model():
-    # Pre-requisite:
-    # Run "wget https://download.pytorch.org/models/resnet101-5d3b4d8f.pth -O resnet101.pth"
-    # in the model directory.
-    model = torchvision.models.resnet101(pretrained=False)
-    state_dict = torch.load('models/resnet101.pth')
-    model.load_state_dict(state_dict)
+    hostname = socket.gethostname()
+    if 'shannon' in hostname or 'markov' in hostname:
+        # Pre-requisite:
+        # Run "wget https://download.pytorch.org/models/resnet101-5d3b4d8f.pth -O resnet101.pth"
+        # in the model directory.
+        model = torchvision.models.resnet101(pretrained=False)
+        state_dict = torch.load('models/resnet101.pth')
+        model.load_state_dict(state_dict)
+    else:
+        model =  torchvision.models.resnet101(pretrained=True)
     return model
 
 class Encoder(nn.Module):
