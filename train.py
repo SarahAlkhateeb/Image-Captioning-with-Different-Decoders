@@ -48,6 +48,8 @@ def main():
                         help='whether to use pre-trained glove embeddings.')
     parser.add_argument('--max_caption_length', type=int, default=50,
                         help='only use captions with caption length <= 50 when training.')
+    parser.add_argument('--use_bert', type=bool,
+                        default=False, help='whether to use BERT embeddigns for attention model.')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -61,6 +63,9 @@ def main():
             raise SystemError(
                 'Must run "python init.py --glove True" when using glove vectors.')
         assert args.embed_size == 300
+
+    if args.use_bert:
+        assert args.model == 'attention', 'BERT is only used for attention model.'
 
     if args.model == 'baseline':
         print('Training baseline model...')
