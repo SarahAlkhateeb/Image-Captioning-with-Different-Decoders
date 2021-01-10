@@ -1,4 +1,4 @@
-.PHONY: attention baseline attention_glove baseline_glove clean printy
+.PHONY: attention baseline attention_glove baseline_glove attention_bert clean printy
 
 printy:
 	echo "Specify command please"
