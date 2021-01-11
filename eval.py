@@ -1,4 +1,6 @@
 
+import os
+import json
 import sys
 sys.path.append('cocoapi/PythonAPI/')
 import argparse
@@ -7,6 +9,13 @@ from checkpoint import load_checkpoint, unpack_checkpoint
 import torch
 import argparse
 from models.attention import evaluate as evaulate_attention_model
+from pathconf import PathConfig
+
+def save_eval_data(name, d):
+    path = os.path.join(PathConfig.eval_data, f'{name}.json')
+    with open(path, 'w+') as f:
+        json.dump(d, f)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Generate caption')
@@ -27,6 +36,7 @@ def main():
     if args.model_type == 'attention':
         metrics = evaulate_attention_model(device, args, encoder, decoder)
         print(metrics)
+        save_eval_data(args.checkpoint.split('.')[0], metrics)
     else:
         raise SystemError("baselien evaluation not supported yet")
 

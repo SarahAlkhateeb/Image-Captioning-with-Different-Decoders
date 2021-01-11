@@ -16,3 +16,5 @@ class PathConfig:
 
     glove = 'glove.6B'
     glove_vectors = os.path.join(glove, 'glove_vectors.pkl')
+
+    eval_data = 'eval_data'

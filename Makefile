@@ -17,6 +17,11 @@ baseline_glove:
 
 attention_bert:
 	bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu -c 32 -s train.py -- 'bert_attention' --model 'attention' --batch_size 32 --epochs 4 --use_bert True --fine_tune_embedding True --embed_size 768 --checkpoint 'bert_attention_2.pth.tar' --max_caption_length -1 --workers 32
+
+attention_eval:
+	export NLTK_DATA='nltk_data' ; bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu-markov -c 32 -s eval.py -- 'basic_att_3.pth.tar' --model_type 'attention'
+
+
 clean:
 	rm slurm-*
 
