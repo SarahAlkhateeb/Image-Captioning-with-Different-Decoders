@@ -23,8 +23,6 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import argparse
 
-from metric import get_eval_score
-
 def attention_caption_image_beam_search(device, args, img, encoder, decoder, vocab):
     """Reads an image and captions it with beam search.
      
@@ -136,85 +134,20 @@ def attention_caption_image_beam_search(device, args, img, encoder, decoder, voc
 
 
 
-def evaluate(device, args, encoder, decoder):
-    """Performs one epoch's evaluation.
-
+def baseline_caption_image_beam_search(device, args, img, encoder, decoder, vocab):
+    """Reads an image and captions it with beam search.
+     
     Args:
-        val_loader: DataLoader for validation data.
-        encoder: Encoder model
-        Decoder: Decoder model
-        criterion: Loss layer
-    
-    Returns:
-        score_dict {'Bleu_1': 0., 'Bleu_2': 0., 'Bleu_3': 0., 'Bleu_4': 0., 'METEOR': 0., 'ROUGE_L': 0., 'CIDEr': 1.}
+        device: Device to run on.
+        args: Parsed command-line arguments from argparse.
+        img (torch.Tensor): Image.
+        encoder: Encoder model.
+        decoder: Decoder model.
+        vocab (vocabulary.Vocabulary): vocabulary
+
+    Return: 
+        caption
     """
 
-    img_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406),
-                             (0.229, 0.224, 0.225))])
-    dataset = COCODataset(
-        mode='val', img_transform=img_transform, caption_max_len=args.max_caption_length)
-
-    vocab = dataset.vocab
-
-    # Dataloader.
-    val_loader = torch.utils.data.DataLoader(
-        dataset=dataset,
-        batch_size=1,
-        shuffle=True,
-        num_workers=1)
-
-    decoder.eval()
-    encoder.eval()
-
-    batch_time = AccumulatingMetric()
-    losses = AccumulatingMetric()
-    top5accs = AccumulatingMetric()
-
-    start = time.time()
-
-    references = []  # Eeferences (true captions) for calculating BLEU-4 score
-    hypotheses = []  # Hypotheses (predictions)
-
-    # Explicitly disable gradient calculation to avoid CUDA memory error
-    with torch.no_grad():
-
-        # Batches
-        for batch_idx, (img, caption, img_path, all_captions) in enumerate(val_loader):    
-            img = img.to(device)
-
-            seq, _ = attention_caption_image_beam_search(device, args, img, encoder, decoder, vocab)
-         
-            img_captions = list(
-                map(lambda c: [w for w in c if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}],
-                    all_captions[0].tolist()))  
-            references.append(img_captions)
-
-            hypotheses.append([w for w in seq if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}])
-            assert len(references) == len(hypotheses)
-
-            break
-            
-    metrics = get_eval_score(references, hypotheses)
-    return metrics
-
-def main():
-    parser = argparse.ArgumentParser(description='Generate caption')
-    parser.add_argument('checkpoint', type=str,
-                        help='checkpoint of trained model.')
-    parser.add_argument('--max_caption_length', type=int, default=-1,
-                        help='only use captions with caption length <= 50 when training.')
-    parser.add_argument('--beam_size', type=int, default=3, help='beam size for beam search')
-    args = parser.parse_args()
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    chkpt = load_checkpoint(device, args)
-    _, encoder, decoder, _, _, _ = unpack_checkpoint(chkpt)
-
-    evaluate(device, args, encoder, decoder)
-
-if __name__ == '__main__':
-    main()
+    pass
+    # TODO(Sarah)

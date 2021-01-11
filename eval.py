@@ -9,6 +9,7 @@ from checkpoint import load_checkpoint, unpack_checkpoint
 import torch
 import argparse
 from models.attention import evaluate as evaulate_attention_model
+from models.baseline import evaluate as evaulate_baseline_model
 from pathconf import PathConfig
 
 def save_eval_data(name, d):
@@ -38,7 +39,9 @@ def main():
         print(metrics)
         save_eval_data(args.checkpoint.split('.')[0], metrics)
     else:
-        raise SystemError("baselien evaluation not supported yet")
+        metrics = evaulate_baseline_model(device, args, encoder, decoder)
+        print(metrics)
+        save_eval_data(args.checkpoint.split('.')[0], metrics)
 
 if __name__ == '__main__':
     main()

@@ -12,8 +12,11 @@ from dataset import COCODataset
 from models.encoder import Encoder
 from metric import AccumulatingMetric
 from train_utils import clip_gradient
+from vocabulary import END_TOKEN, PAD_TOKEN, START_TOKEN, Vocabulary
 from checkpoint import save_checkpoint, load_checkpoint, unpack_checkpoint
 from embed import load_glove_vectors
+from gen_captions import baseline_caption_image_beam_search
+from metric import get_eval_score
 
 class BaselineDecoderParams:
     hidden_size = 512
@@ -261,3 +264,60 @@ def train(device, args):
 
     train_time = time.time() - train_start
     print(f'Model {args.model_name} finished training for {args.epochs} epochs in {train_time:.4f} seconds.')
+
+
+def evaluate(device, args, encoder, decoder):
+    """Performs one epoch's evaluation.
+
+    Args:
+        val_loader: DataLoader for validation data.
+        encoder: Encoder model
+        Decoder: Decoder model
+        criterion: Loss layer
+    
+    Returns:
+        score_dict {'Bleu_1': 0., 'Bleu_2': 0., 'Bleu_3': 0., 'Bleu_4': 0., 'METEOR': 0., 'ROUGE_L': 0., 'CIDEr': 1.}
+    """
+
+    img_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406),
+                             (0.229, 0.224, 0.225))])
+    dataset = COCODataset(
+        mode='val', img_transform=img_transform, caption_max_len=args.max_caption_length)
+
+    vocab = dataset.vocab
+
+    # Dataloader.
+    val_loader = torch.utils.data.DataLoader(
+        dataset=dataset,
+        batch_size=1,
+        shuffle=True,
+        num_workers=1)
+
+    decoder.eval()
+    encoder.eval()
+
+    references = []  # Eeferences (true captions) for calculating BLEU-4 score
+    hypotheses = []  # Hypotheses (predictions)
+
+    # Explicitly disable gradient calculation to avoid CUDA memory error
+    with torch.no_grad():
+
+        # Batches
+        for batch_idx, (img, caption, img_path, all_captions) in enumerate(val_loader):    
+            img = img.to(device)
+
+            seq = baseline_caption_image_beam_search(device, args, img, encoder, decoder, vocab)
+         
+            img_captions = list(
+                map(lambda c: [w for w in c if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}],
+                    all_captions[0].tolist()))  
+            references.append(img_captions)
+
+            hypotheses.append([w for w in seq if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}])
+            assert len(references) == len(hypotheses)
+            
+    metrics = get_eval_score(references, hypotheses)
+    return metrics
