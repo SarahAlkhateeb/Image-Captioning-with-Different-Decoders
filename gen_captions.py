@@ -145,7 +145,7 @@ def baseline_caption_image_beam_search(device, args, img, encoder, decoder, voca
         decoder: Decoder model.
         vocab (vocabulary.Vocabulary): vocabulary
 
-    Return: 
+    Return:
         caption
     """
 
