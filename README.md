@@ -59,6 +59,18 @@ Run ```python init.py --vocab True```.
 Run ```python dataset.py```
 
 
+## Working with jupyter notebook.
+
+Prerequisite: ```conda install jupyter``` in conda environment (env) on bayes.
+
+1. ssh into bayes
+   1. conda activate env
+   2. jupyter notebook --no-browser --port=8885
+2. locally in terminal
+   1. ssh -f -N -L localhost:8885:localhost:8885 bayes
+3. Click link (including token=) in ssh terminal
+
+
 ## References
 
 * https://github.com/sankalp1999/Image_Captioning_With_Attention/blob/main/model.py
