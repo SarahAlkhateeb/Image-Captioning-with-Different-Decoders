@@ -487,8 +487,10 @@ def evaluate(device, args, encoder, decoder):
     decoder.eval()
     encoder.eval()
 
-    references = []  # Eeferences (true captions) for calculating BLEU-4 score
+    references = []  # References (true captions) for calculating BLEU-4 score
     hypotheses = []  # Hypotheses (predictions)
+
+    bad_sequence_count = 0
 
     # Explicitly disable gradient calculation to avoid CUDA memory error
     with torch.no_grad():
@@ -497,15 +499,21 @@ def evaluate(device, args, encoder, decoder):
         for batch_idx, (img, caption, img_path, all_captions) in enumerate(val_loader):    
             img = img.to(device)
 
-            seq, _ = attention_caption_image_beam_search(device, args, img, encoder, decoder, vocab)
-         
-            img_captions = list(
-                map(lambda c: [w for w in c if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}],
-                    all_captions[0].tolist()))  
-            references.append(img_captions)
+            seq, _, Caption_End = attention_caption_image_beam_search(device, args, img, encoder, decoder, vocab)
+            if not Caption_End:
+                print(f'Bad sequence ({batch_idx+1}/{len(val_loader)}, {img_path}):', [vocab.i2w[id] for id in seq])
+                bad_sequence_count += 1
+            else:
+                img_captions = list(
+                    map(lambda c: [w for w in c if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}],
+                        all_captions[0].tolist()))  
+                references.append(img_captions)
 
-            hypotheses.append([w for w in seq if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}])
+                hypotheses.append([w for w in seq if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}])
+            
             assert len(references) == len(hypotheses)
+
             
     metrics = get_eval_score(references, hypotheses)
+    metrics['bad_seq_count'] = bad_sequence_count
     return metrics

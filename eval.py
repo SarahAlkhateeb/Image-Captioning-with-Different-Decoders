@@ -14,7 +14,7 @@ from pathconf import PathConfig
 
 def save_eval_data(name, d):
     path = os.path.join(PathConfig.eval_data, f'{name}.json')
-    with open(path, 'w+') as f:
+    with open(path, 'w') as f:
         json.dump(d, f)
 
 
@@ -38,7 +38,7 @@ def main():
         metrics = evaulate_attention_model(device, args, encoder, decoder)
         print(metrics)
         save_eval_data(args.checkpoint.split('.')[0], metrics)
-    else:
+    elif args.model_type == 'baseline':
         metrics = evaulate_baseline_model(device, args, encoder, decoder)
         print(metrics)
         save_eval_data(args.checkpoint.split('.')[0], metrics)

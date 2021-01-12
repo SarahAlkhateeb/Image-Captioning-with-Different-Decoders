@@ -53,7 +53,6 @@ def attention_caption_image_beam_search(device, args, img, encoder, decoder, voc
 
     # Tensor to store top k previous words at each step; now they're just <start>
     k_prev_words = torch.LongTensor([[vocab(START_TOKEN)]] * k).to(device)  # (k, 1)
-    
 
     # Tensor to store top k sequences; now they're just <start>
     seqs = torch.LongTensor([[vocab(START_TOKEN)]] * k).to(device)  # (k, 1)
@@ -99,7 +98,9 @@ def attention_caption_image_beam_search(device, args, img, encoder, decoder, voc
         # Which sequences are incomplete (didn't reach <end>)?
         incomplete_inds = [ind for ind, next_word in enumerate(next_word_inds) if
                            next_word != vocab(END_TOKEN)]
+
         complete_inds = list(set(range(len(next_word_inds))) - set(incomplete_inds))
+
         # Set aside complete sequences
         if len(complete_inds) > 0:
             Caption_End = True
@@ -121,16 +122,19 @@ def attention_caption_image_beam_search(device, args, img, encoder, decoder, voc
         k_prev_words = next_word_inds[incomplete_inds].unsqueeze(1)
         
         # Break if things have been going on too long
-        if step > 50:
+        if step > 500:
             break
         step += 1
 
-    assert Caption_End
-    indices = complete_seqs_scores.index(max(complete_seqs_scores))
-    seq = complete_seqs[indices]
-    alphas = complete_seqs_alpha[indices]
+    if not Caption_End:
+        # If failure,
+        return [vocab(START_TOKEN), vocab(END_TOKEN)], [], Caption_End
+    else:
+        indices = complete_seqs_scores.index(max(complete_seqs_scores))
+        seq = complete_seqs[indices]
+        alphas = complete_seqs_alpha[indices]
 
-    return seq, alphas
+        return seq, alphas, Caption_End
 
 
 

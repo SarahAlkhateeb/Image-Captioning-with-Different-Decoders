@@ -23,7 +23,7 @@ baseline_eval:
 
 
 attention_eval:
-	export NLTK_DATA='nltk_data' ; bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu-markov -c 32 -s eval.py -- 'basic_att_3.pth.tar' --model_type 'attention'
+	bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu -c 4 -s eval.py -- 'basic_att_3.pth.tar' --model_type 'attention'
 
 clean:
 	rm slurm-*
