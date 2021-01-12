@@ -19,7 +19,10 @@ attention_bert:
 	bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu -c 32 -s train.py -- 'bert_attention' --model 'attention' --batch_size 32 --epochs 4 --use_bert True --fine_tune_embedding True --embed_size 768 --checkpoint 'bert_attention_2.pth.tar' --max_caption_length -1 --workers 32
 
 baseline_eval:
-	bash /opt/local/bin/run_py_job.sh -e nlp_project -p cpu -c 4 -s eval.py -- 'baseline_3.pth.tar' --model_type 'baseline'
+	bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu -c 4 -s eval.py -- 'baseline_3.pth.tar' --model_type 'baseline'
+
+baseline_glove_eval:
+	bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu -c 4 -s eval.py -- 'glove_baseline_3.pth.tar' --model_type 'baseline'
 
 attention_eval:
 	bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu -c 4 -s eval.py -- 'basic_att_3.pth.tar' --model_type 'attention'

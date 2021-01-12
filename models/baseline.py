@@ -3,7 +3,6 @@ import time
 import torch
 import torch.nn as nn
 
-import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
 from torchvision import transforms
 
@@ -15,7 +14,6 @@ from train_utils import clip_gradient
 from vocabulary import END_TOKEN, PAD_TOKEN, START_TOKEN, Vocabulary
 from checkpoint import save_checkpoint, load_checkpoint, unpack_checkpoint
 from embed import load_glove_vectors
-from gen_captions import baseline_caption_image_beam_search
 from metric import get_eval_score
 
 class BaselineDecoderParams:
@@ -270,13 +268,14 @@ def evaluate(device, args, encoder, decoder):
     """Performs one epoch's evaluation.
 
     Args:
+        device: Device to run on.
+        args: Parsed command-line arguments from argparse.
         val_loader: DataLoader for validation data.
         encoder: Encoder model
         Decoder: Decoder model
-        criterion: Loss layer
     
     Returns:
-        score_dict {'Bleu_1': 0., 'Bleu_2': 0., 'Bleu_3': 0., 'Bleu_4': 0., 'METEOR': 0., 'ROUGE_L': 0., 'CIDEr': 1.}
+        score_dict {'Bleu_1': 0., 'Bleu_2': 0., 'Bleu_3': 0., 'Bleu_4': 0., 'METEOR': 0., 'ROUGE_L': 0., 'CIDEr': 1., 'losses': []}
     """
 
     img_transform = transforms.Compose([
@@ -287,37 +286,88 @@ def evaluate(device, args, encoder, decoder):
     dataset = COCODataset(
         mode='val', img_transform=img_transform, caption_max_len=args.max_caption_length)
 
-    vocab = dataset.vocab
+    # Collate function for dataloader.
+    pad_idx = dataset.vocab(PAD_TOKEN)
+    def collate_fn(data):
+        imgs, captions, _, _ = zip(*data)
+
+        imgs = torch.stack(imgs, dim=0)
+        captions = pad_sequence(
+            captions, batch_first=True, padding_value=pad_idx)
+        caption_lengths = [len(caption) for caption in captions]
+
+        return imgs, captions, caption_lengths
 
     # Dataloader.
     val_loader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=1,
         shuffle=True,
-        num_workers=1)
+        num_workers=1,
+        collate_fn=collate_fn)
 
+    vocab = dataset.vocab
+
+    criterion = nn.CrossEntropyLoss()
+
+    references = [] 
+    hypotheses = [] 
+    
     decoder.eval()
     encoder.eval()
 
-    references = []  # Eeferences (true captions) for calculating BLEU-4 score
-    hypotheses = []  # Hypotheses (predictions)
+    accum_loss = AccumulatingMetric()
+    losses = []
 
-    # Explicitly disable gradient calculation to avoid CUDA memory error
+    # Batches
+    num_batches = len(val_loader)
+    start_time = time.time()
+    print("Started validation...")
     with torch.no_grad():
-
-        # Batches
-        for batch_idx, (img, caption, img_path, all_captions) in enumerate(val_loader):    
-            img = img.to(device)
-
-            seq = baseline_caption_image_beam_search(device, args, img, encoder, decoder, vocab)
-         
-            img_captions = list(
-                map(lambda c: [w for w in c if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}],
-                    all_captions[0].tolist()))  
-            references.append(img_captions)
-
-            hypotheses.append([w for w in seq if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}])
-            assert len(references) == len(hypotheses)
+        for batch_idx, (imgs, captions, caption_lengths) in enumerate(val_loader):
             
+            # Forward prop.
+            imgs = imgs.to(device)
+            captions = captions.to(device)
+
+            img_features = encoder(imgs)
+            scores = decoder(img_features, captions)
+
+            # Calculate loss.
+            loss = criterion(
+                scores.reshape(-1, scores.shape[2]), captions.reshape(-1))
+            losses.append(loss.item())
+            accum_loss.update(loss.item())
+
+            # References
+            for j in range(captions.shape[0]):
+                img_captions = captions[j].tolist() # validation dataset only has 1 unique caption per img
+                # Remove <start>, <end> and <pad> tokens.
+                cleaned_image_captions = [w for w in img_captions if w not in [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]]  # remove pad, start, and end
+                img_captions = list(map(lambda c: cleaned_image_captions, img_captions))
+                references.append(img_captions)
+
+            # Hypotheses
+            _, preds = torch.max(scores, dim=2)
+            preds = preds.tolist()
+            temp_preds = list()
+            for j, pred in enumerate(preds):
+                # Remove <start>, <end> and <pad> tokens.
+                cleaned_pred = [w for w in pred if w not in [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]]
+                temp_preds.append(cleaned_pred) 
+            preds = temp_preds
+            hypotheses.extend(preds)
+
+            assert len(hypotheses) == len(references)
+
+            if batch_idx % args.print_freq == 0:
+                print(f'Batch {batch_idx+1}/{num_batches}, Loss {accum_loss.avg():.4f}')
+    
     metrics = get_eval_score(references, hypotheses)
+    metrics['losses'] = losses
+
+    end_time = time.time() - start_time
+    print(f'Checkpoint {args.checkpoint} finished evaluation in {end_time:.4f} seconds.')
+
     return metrics
+

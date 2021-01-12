@@ -1,27 +1,9 @@
-import time
-import os
 import sys
 sys.path.append('cocoapi/PythonAPI/')
-import argparse
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from checkpoint import load_checkpoint, unpack_checkpoint
-from metric import AccumulatingMetric
-from dataset import COCODataset
-from torchvision import transforms
-from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
-from vocabulary import END_TOKEN, PAD_TOKEN, START_TOKEN, Vocabulary
+from vocabulary import END_TOKEN, START_TOKEN
 
-import os, time
-import torch
-import torch.nn.functional as F
-import numpy as np
-import json
-import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import argparse
 
 def attention_caption_image_beam_search(device, args, img, encoder, decoder, vocab):
     """Reads an image and captions it with beam search.
@@ -137,22 +119,3 @@ def attention_caption_image_beam_search(device, args, img, encoder, decoder, voc
 
         return seq, alphas, Caption_End
 
-
-
-def baseline_caption_image_beam_search(device, args, img, encoder, decoder, vocab):
-    """Reads an image and captions it with beam search.
-     
-    Args:
-        device: Device to run on.
-        args: Parsed command-line arguments from argparse.
-        img (torch.Tensor): Image.
-        encoder: Encoder model.
-        decoder: Decoder model.
-        vocab (vocabulary.Vocabulary): vocabulary
-
-    Return:
-        caption
-    """
-
-    pass
-    # TODO(Sarah)

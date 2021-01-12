@@ -91,6 +91,6 @@ def get_img_dir(mode):
 
 if __name__ == '__main__':
     # 11 captions with caption_max_len=25
-    print(len(COCODataset('train', caption_max_len=35)))
+    print(len(COCODataset('train', caption_max_len=-1)))
     # 4 captions with caption_max_len=25
-    print(len(COCODataset('val', caption_max_len=35)))
+    print(len(COCODataset('val', caption_max_len=-1)))

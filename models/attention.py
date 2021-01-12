@@ -12,10 +12,7 @@ from models.encoder import EncoderAttention
 from metric import AccumulatingMetric
 from train_utils import clip_gradient
 from checkpoint import save_checkpoint, load_checkpoint, unpack_checkpoint
-from gen_captions import attention_caption_image_beam_search
 from metric import get_eval_score
-from nltk.translate.bleu_score import corpus_bleu
-from nltk.translate.chrf_score import corpus_chrf
 
 class SoftAttention(nn.Module):
     """Attention network."""
@@ -454,6 +451,19 @@ def train(device, args):
     print(f'Model {args.model_name} finished training for {args.epochs} epochs.')
 
 def evaluate(device, args, encoder, decoder):
+    """Performs one epoch's evaluation.
+
+    Args:
+        device: Device to run on.
+        args: Parsed command-line arguments from argparse.
+        val_loader: DataLoader for validation data.
+        encoder: Encoder model
+        Decoder: Decoder model
+    
+    Returns:
+        score_dict {'Bleu_1': 0., 'Bleu_2': 0., 'Bleu_3': 0., 'Bleu_4': 0., 'METEOR': 0., 'ROUGE_L': 0., 'CIDEr': 1., 'losses': []}
+    """
+
     img_transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
