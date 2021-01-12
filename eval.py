@@ -26,7 +26,8 @@ def main():
         '--model_type', type=str, choices=['baseline', 'attention'], help='Type of model to evaluate')
     parser.add_argument('--max_caption_length', type=int, default=-1,
                         help='only use captions with caption length <= 50 when training.')
-    parser.add_argument('--beam_size', type=int, default=3, help='beam size for beam search')
+    parser.add_argument('--print_freq', type=int, default=1,
+                        help='print training/validation stats every __ batches.')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

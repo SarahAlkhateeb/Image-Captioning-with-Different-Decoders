@@ -14,7 +14,8 @@ from train_utils import clip_gradient
 from checkpoint import save_checkpoint, load_checkpoint, unpack_checkpoint
 from gen_captions import attention_caption_image_beam_search
 from metric import get_eval_score
-
+from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.chrf_score import corpus_chrf
 
 class SoftAttention(nn.Module):
     """Attention network."""
@@ -305,7 +306,6 @@ def train(device, args):
 
     # Collate function for dataloader.
     pad_idx = dataset.vocab(PAD_TOKEN)
-
     def collate_fn(data):
         imgs, captions = zip(*data)
 
@@ -453,20 +453,7 @@ def train(device, args):
 
     print(f'Model {args.model_name} finished training for {args.epochs} epochs.')
 
-
 def evaluate(device, args, encoder, decoder):
-    """Performs one epoch's evaluation.
-
-    Args:
-        val_loader: DataLoader for validation data.
-        encoder: Encoder model
-        Decoder: Decoder model
-        criterion: Loss layer
-    
-    Returns:
-        score_dict {'Bleu_1': 0., 'Bleu_2': 0., 'Bleu_3': 0., 'Bleu_4': 0., 'METEOR': 0., 'ROUGE_L': 0., 'CIDEr': 1.}
-    """
-
     img_transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
@@ -475,45 +462,95 @@ def evaluate(device, args, encoder, decoder):
     dataset = COCODataset(
         mode='val', img_transform=img_transform, caption_max_len=args.max_caption_length)
 
-    vocab = dataset.vocab
+    # Collate function for dataloader.
+    pad_idx = dataset.vocab(PAD_TOKEN)
+    def collate_fn(data):
+        imgs, captions, _, _ = zip(*data)
+
+        imgs = torch.stack(imgs, dim=0)
+        captions = pad_sequence(
+            captions, batch_first=True, padding_value=pad_idx)
+        caption_lengths = [len(caption) for caption in captions]
+
+        return imgs, captions, caption_lengths
 
     # Dataloader.
     val_loader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=1,
         shuffle=True,
-        num_workers=1)
+        num_workers=1,
+        collate_fn=collate_fn)
 
+    vocab = dataset.vocab
+
+    criterion = nn.CrossEntropyLoss()
+
+    references = [] 
+    hypotheses = [] 
+    
     decoder.eval()
     encoder.eval()
 
-    references = []  # References (true captions) for calculating BLEU-4 score
-    hypotheses = []  # Hypotheses (predictions)
+    accum_loss = AccumulatingMetric()
+    losses = []
 
-    bad_sequence_count = 0
-
-    # Explicitly disable gradient calculation to avoid CUDA memory error
+    # Batches
+    num_batches = len(val_loader)
+    start_time = time.time()
+    print("Started validation...")
     with torch.no_grad():
+        for batch_idx, (imgs, captions, caption_lengths) in enumerate(val_loader):
+            
+            # Forward prop.
+            imgs = imgs.to(device)
+            captions = captions.to(device)
 
-        # Batches
-        for batch_idx, (img, caption, img_path, all_captions) in enumerate(val_loader):    
-            img = img.to(device)
+            img_features = encoder(imgs)
 
-            seq, _, Caption_End = attention_caption_image_beam_search(device, args, img, encoder, decoder, vocab)
-            if not Caption_End:
-                print(f'Bad sequence ({batch_idx+1}/{len(val_loader)}, {img_path}):', [vocab.i2w[id] for id in seq])
-                bad_sequence_count += 1
-            else:
-                img_captions = list(
-                    map(lambda c: [w for w in c if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}],
-                        all_captions[0].tolist()))  
+            scores, captions_sorted, decode_lengths, attention_weights = decoder(img_features, captions, caption_lengths)
+            targets = captions_sorted[:, 1:]
+
+            # Remove timesteps that we didn't decode at, or are pads.
+            scores_packed = pack_padded_sequence(scores, decode_lengths, batch_first=True).data
+            targets_packed = pack_padded_sequence(targets, decode_lengths, batch_first=True).data
+
+            # Calculate loss.
+            loss = criterion(scores_packed, targets_packed)
+            loss += ((1. - attention_weights.sum(dim=1)) ** 2).mean()
+            accum_loss.update(loss.item(), sum(decode_lengths))
+            losses.append(loss.item())
+
+            # References
+            for j in range(targets.shape[0]):
+                img_captions = targets[j].tolist() # validation dataset only has 1 unique caption per img
+                # Remove <start>, <end> and <pad> tokens.
+                cleaned_image_captions = [w for w in img_captions if w not in [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]]  # remove pad, start, and end
+                img_captions = list(map(lambda c: cleaned_image_captions, img_captions))
                 references.append(img_captions)
 
-                hypotheses.append([w for w in seq if w not in {vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)}])
-            
-            assert len(references) == len(hypotheses)
+            # Hypotheses
+            _, preds = torch.max(scores, dim=2)
+            preds = preds.tolist()
+            temp_preds = list()
+            for j, p in enumerate(preds):
+                pred = p[:decode_lengths[j]]
+                # Remove <start>, <end> and <pad> tokens.
+                cleaned_pred = [w for w in pred if w not in [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]]
+                temp_preds.append(cleaned_pred) 
+            preds = temp_preds
+            hypotheses.extend(preds)
 
-            
+            assert len(hypotheses) == len(references)
+
+            print(f'loss: {accum_loss.avg()}')
+            if batch_idx % args.print_freq == 0:
+                print(f'Batch {batch_idx+1}/{num_batches}, Loss {accum_loss.avg():.4f}')
+
     metrics = get_eval_score(references, hypotheses)
-    metrics['bad_seq_count'] = bad_sequence_count
+    metrics['losses'] = losses
+
+    end_time = time.time() - start_time
+    print(f'Checkpoint {args.checkpoint} finished evaluation in {end_time:.4f} seconds.')
+
     return metrics
