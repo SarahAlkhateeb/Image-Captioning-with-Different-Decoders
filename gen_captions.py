@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 from vocabulary import END_TOKEN, START_TOKEN, PAD_TOKEN, UNK_TOKEN, load_vocab
 from checkpoint import load_checkpoint, unpack_checkpoint
 import imageio
-import skimage.transform
+#import skimage.transform
 from PIL import Image
 import numpy as np
 
@@ -87,6 +87,7 @@ def attention_caption_image_beam_search(device, args, img, encoder, decoder, voc
         seqs = torch.cat([seqs[prev_word_inds], next_word_inds.unsqueeze(1)], dim=1)  # (s, step+1)
         seqs_alpha = torch.cat([seqs_alpha[prev_word_inds], alpha[prev_word_inds]], dim=1)  # (s, step+1, enc_image_size, enc_image_size)
 
+        print([vocab.i2w[id.item()] for id in next_word_inds])
         # Which sequences are incomplete (didn't reach <end>)?
         incomplete_inds = [ind for ind, next_word in enumerate(next_word_inds) if
                            next_word != vocab(END_TOKEN)]
@@ -114,7 +115,7 @@ def attention_caption_image_beam_search(device, args, img, encoder, decoder, voc
         k_prev_words = next_word_inds[incomplete_inds].unsqueeze(1)
         
         # Break if things have been going on too long
-        if step > 500:
+        if step > 50:
             break
         step += 1
 
@@ -134,9 +135,25 @@ def attention_greedy_search(device, args, img, encoder, decoder, vocab):
     # TODO
 
 def baseline_greedy_search(device, args, img, encoder, decoder, vocab, strip_unk=False):
-    result = []
-    with torch.no_grad():
-        input = encoder(img).unsqueeze(0)
+    caption = torch.LongTensor([vocab(START_TOKEN)]).unsqueeze(0)
+    print(caption.shape)
+
+    img_features = encoder(img)
+    scores = decoder(img_features, caption)
+    _, preds = torch.max(scores, dim=2)
+
+    preds = preds.tolist()
+    for j, pred in enumerate(preds):
+        # Remove <start>, <end> and <pad> tokens.
+        cleaned_pred = [w for w in pred if w not in [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]]
+
+        print(cleaned_pred)
+    
+    return
+
+    """ with torch.no_grad():
+        input = encoder(img).to(device)
+        input = input.unsqueeze(0)
         hidden = None
 
         for _ in range(args.max_length):
@@ -150,7 +167,7 @@ def baseline_greedy_search(device, args, img, encoder, decoder, vocab, strip_unk
             if predicted == vocab(END_TOKEN):
                 break
 
-            input = decoder.embedding(max_indice).unsqueeze(1)
+            input = decoder.embedding(max_indice).unsqueeze(1) """
 
     bad_tokens = [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]
     if strip_unk:
@@ -160,19 +177,18 @@ def baseline_greedy_search(device, args, img, encoder, decoder, vocab, strip_unk
     return [vocab.i2w[id] for id in cleaned_pred]
 
 def load_img(device, path):
-    image = imageio.imread(path)
-    img = np.array(Image.fromarray(image).resize((224, 224)))
+    img = np.array(Image.fromarray(imageio.imread(path)))
     img = img.transpose(2, 0, 1)
     img = img / 255.0
     img = torch.FloatTensor(img).to(device)
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+    """ normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                     std=[0.229, 0.224, 0.225])
     transform = transforms.Compose([normalize])
-    img = transform(img)  # (3, 224, 224)
+    img = transform(img)  # (3, 224, 224) """
     img = img.unsqueeze(0)  # (1, 3, 224, 224)
     return img
     
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='Generate caption')
     parser.add_argument('checkpoint', type=str,
                         help='checkpoint of trained model.')
@@ -182,9 +198,11 @@ if __name__ == '__main__':
         '--strip_unk', type=bool, default=False, help='whether to strip <unk> tokens.')
     parser.add_argument(
         '--max_length', type=int, default=50, help='max length of generated caption.')
+    parser.add_argument(
+        '--beam_size', type=int, default=3, help='beam size for beam search.')
     args = parser.parse_args()
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu')
 
     chkpt = load_checkpoint(device, args)
     _, encoder, decoder, _, _, _ = unpack_checkpoint(chkpt)
@@ -193,8 +211,10 @@ if __name__ == '__main__':
 
     watersport_img = load_img(device, os.path.join('sample_imgs', 'watersport.jpg'))
     bathroom_img = load_img(device, os.path.join('sample_imgs', 'bathroom.jpg'))
-    
-    imgs = [('watersport', watersport_img), ('bathroom', bathroom_img)]
+    couch_img = load_img(device, os.path.join('sample_imgs', 'couch.jpg'))
+
+
+    imgs = [('watersport', watersport_img), ('bathroom', bathroom_img), ('couch', couch_img)]
 
     if args.model_type == 'baseline':
         for about, img in imgs:
@@ -204,8 +224,16 @@ if __name__ == '__main__':
             print('---'*25)
     elif args.model_type == 'attention':
         for about, img in imgs:
-            seq = attention_greedy_search(device, args, img, encoder, decoder, vocab)
+            seq, _, _ = attention_caption_image_beam_search(device, args, img, encoder, decoder, vocab)
+            bad_tokens = [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]
+            if args.strip_unk:
+                bad_tokens.append(vocab(UNK_TOKEN))
+            cleaned_pred = [w for w in seq if w not in bad_tokens]
+            caption = [vocab.i2w[id] for id in cleaned_pred]
             print(f'Topic: {about}')
-            print(seq)
+            print(caption)
             print('---'*25)
 
+
+if __name__ == '__main__':
+    main()

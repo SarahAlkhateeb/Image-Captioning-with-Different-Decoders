@@ -5,7 +5,6 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence
 from torchvision import transforms
 
-from vocabulary import PAD_TOKEN
 from dataset import COCODataset
 from models.encoder import Encoder
 from metric import AccumulatingMetric
