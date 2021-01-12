@@ -21,9 +21,14 @@ attention_bert:
 baseline_eval:
 	bash /opt/local/bin/run_py_job.sh -e nlp_project -p cpu -c 4 -s eval.py -- 'baseline_3.pth.tar' --model_type 'baseline'
 
-
 attention_eval:
 	bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu -c 4 -s eval.py -- 'basic_att_3.pth.tar' --model_type 'attention'
+
+attention_glove_eval:
+	bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu -c 4 -s eval.py -- 'glove_att_3.pth.tar' --model_type 'attention'
+
+bert_att_eval:
+	bash /opt/local/bin/run_py_job.sh -e dit245_group15 -p cpu -c 4 -s eval.py -- 'bert_attention_3.pth.tar' --model_type 'attention'
 
 clean:
 	rm slurm-*

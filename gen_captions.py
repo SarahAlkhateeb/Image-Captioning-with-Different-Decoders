@@ -75,7 +75,8 @@ def attention_caption_image_beam_search(device, args, img, encoder, decoder, voc
         alpha = alpha.view(-1, enc_image_size, enc_image_size).unsqueeze(1)  # (s, 1, enc_image_size, enc_image_size)
         gate = decoder.sigmoid(decoder.f_beta(h))  # gating scalar, (s, encoder_dim)
         awe = gate * awe
-        h, c = decoder.decode_step(torch.cat([embeddings, awe], dim=1), (h, c))  # (s, decoder_dim)
+        cat_val = torch.cat([embeddings.double(), awe.double()], dim=1)
+        h, c = decoder.decode_step(cat_val.float(), (h.float(), c.float()))  # (s, decoder_dim)
         scores = decoder.fc(h)  # (s, vocab_size)
         
         scores = F.log_softmax(scores, dim=1)
