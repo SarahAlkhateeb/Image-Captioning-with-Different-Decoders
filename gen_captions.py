@@ -1,12 +1,21 @@
+import os
 import sys
 sys.path.append('cocoapi/PythonAPI/')
+import argparse
 import torch
 import torch.nn.functional as F
-from vocabulary import END_TOKEN, START_TOKEN
-
+import torchvision.transforms as transforms
+from vocabulary import END_TOKEN, START_TOKEN, PAD_TOKEN, UNK_TOKEN, load_vocab
+from checkpoint import load_checkpoint, unpack_checkpoint
+import imageio
+import skimage.transform
+from PIL import Image
+import numpy as np
 
 def attention_caption_image_beam_search(device, args, img, encoder, decoder, vocab):
     """Reads an image and captions it with beam search.
+
+    Note: Doesn't work for bert model sometimes doesn't converge...
      
     Args:
         device: Device to run on.
@@ -118,4 +127,85 @@ def attention_caption_image_beam_search(device, args, img, encoder, decoder, voc
         alphas = complete_seqs_alpha[indices]
 
         return seq, alphas, Caption_End
+
+
+def attention_greedy_search(device, args, img, encoder, decoder, vocab):
+    img_features = encoder(img) # (1, enc_image_size=14, enc_image_size=14, encoder_dim)
+    # TODO
+
+def baseline_greedy_search(device, args, img, encoder, decoder, vocab, strip_unk=False):
+    result = []
+    with torch.no_grad():
+        input = encoder(img).unsqueeze(0)
+        hidden = None
+
+        for _ in range(args.max_length):
+            lstm_out, hidden = decoder.lstm(input.float(), hidden)
+            output = decoder.linear(lstm_out)
+            output = output.squeeze(1)
+            _, max_indice = torch.max(output, dim=1)
+            predicted = max_indice.cpu().numpy()[0].item()
+            result.append(predicted)
+
+            if predicted == vocab(END_TOKEN):
+                break
+
+            input = decoder.embedding(max_indice).unsqueeze(1)
+
+    bad_tokens = [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]
+    if strip_unk:
+        bad_tokens.append(vocab(UNK_TOKEN))
+    cleaned_pred = [w for w in result if w not in bad_tokens]
+
+    return [vocab.i2w[id] for id in cleaned_pred]
+
+def load_img(device, path):
+    image = imageio.imread(path)
+    img = np.array(Image.fromarray(image).resize((224, 224)))
+    img = img.transpose(2, 0, 1)
+    img = img / 255.0
+    img = torch.FloatTensor(img).to(device)
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                    std=[0.229, 0.224, 0.225])
+    transform = transforms.Compose([normalize])
+    img = transform(img)  # (3, 224, 224)
+    img = img.unsqueeze(0)  # (1, 3, 224, 224)
+    return img
+    
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Generate caption')
+    parser.add_argument('checkpoint', type=str,
+                        help='checkpoint of trained model.')
+    parser.add_argument(
+        '--model_type', type=str, choices=['baseline', 'attention'], help='type of model.')
+    parser.add_argument(
+        '--strip_unk', type=bool, default=False, help='whether to strip <unk> tokens.')
+    parser.add_argument(
+        '--max_length', type=int, default=50, help='max length of generated caption.')
+    args = parser.parse_args()
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    chkpt = load_checkpoint(device, args)
+    _, encoder, decoder, _, _, _ = unpack_checkpoint(chkpt)
+
+    vocab = load_vocab()
+
+    watersport_img = load_img(device, os.path.join('sample_imgs', 'watersport.jpg'))
+    bathroom_img = load_img(device, os.path.join('sample_imgs', 'bathroom.jpg'))
+    
+    imgs = [('watersport', watersport_img), ('bathroom', bathroom_img)]
+
+    if args.model_type == 'baseline':
+        for about, img in imgs:
+            seq = baseline_greedy_search(device, args, img, encoder, decoder, vocab)
+            print(f'Topic: {about}')
+            print(seq)
+            print('---'*25)
+    elif args.model_type == 'attention':
+        for about, img in imgs:
+            seq = attention_greedy_search(device, args, img, encoder, decoder, vocab)
+            print(f'Topic: {about}')
+            print(seq)
+            print('---'*25)
 

@@ -19,11 +19,11 @@ def save_eval_data(name, d):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate caption')
+    parser = argparse.ArgumentParser(description='Evaluation')
     parser.add_argument('checkpoint', type=str,
                         help='checkpoint of trained model.')
     parser.add_argument(
-        '--model_type', type=str, choices=['baseline', 'attention'], help='Type of model to evaluate')
+        '--model_type', type=str, choices=['baseline', 'attention'], help='type of model to evaluate')
     parser.add_argument('--max_caption_length', type=int, default=-1,
                         help='only use captions with caption length <= 50 when training.')
     parser.add_argument('--print_freq', type=int, default=1,

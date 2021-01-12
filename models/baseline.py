@@ -2,7 +2,6 @@
 import time
 import torch
 import torch.nn as nn
-
 from torch.nn.utils.rnn import pad_sequence
 from torchvision import transforms
 
@@ -15,6 +14,7 @@ from vocabulary import END_TOKEN, PAD_TOKEN, START_TOKEN, Vocabulary
 from checkpoint import save_checkpoint, load_checkpoint, unpack_checkpoint
 from embed import load_glove_vectors
 from metric import get_eval_score
+
 
 class BaselineDecoderParams:
     hidden_size = 512
@@ -277,6 +277,8 @@ def evaluate(device, args, encoder, decoder):
     Returns:
         score_dict {'Bleu_1': 0., 'Bleu_2': 0., 'Bleu_3': 0., 'Bleu_4': 0., 'METEOR': 0., 'ROUGE_L': 0., 'CIDEr': 1., 'losses': []}
     """
+
+
 
     img_transform = transforms.Compose([
         transforms.Resize((224, 224)),
