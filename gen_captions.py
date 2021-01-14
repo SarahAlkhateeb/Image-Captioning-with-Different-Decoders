@@ -8,7 +8,6 @@ import torchvision.transforms as transforms
 from vocabulary import END_TOKEN, START_TOKEN, PAD_TOKEN, UNK_TOKEN, load_vocab
 from checkpoint import load_checkpoint, unpack_checkpoint
 import imageio
-#import skimage.transform
 from PIL import Image
 import numpy as np
 
@@ -129,53 +128,6 @@ def attention_caption_image_beam_search(device, args, img, encoder, decoder, voc
 
         return seq, alphas, Caption_End
 
-
-def attention_greedy_search(device, args, img, encoder, decoder, vocab):
-    img_features = encoder(img) # (1, enc_image_size=14, enc_image_size=14, encoder_dim)
-    # TODO
-
-def baseline_greedy_search(device, args, img, encoder, decoder, vocab, strip_unk=False):
-    caption = torch.LongTensor([vocab(START_TOKEN)]).unsqueeze(0)
-    print(caption.shape)
-
-    img_features = encoder(img)
-    scores = decoder(img_features, caption)
-    _, preds = torch.max(scores, dim=2)
-
-    preds = preds.tolist()
-    for j, pred in enumerate(preds):
-        # Remove <start>, <end> and <pad> tokens.
-        cleaned_pred = [w for w in pred if w not in [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]]
-
-        print(cleaned_pred)
-    
-    return
-
-    """ with torch.no_grad():
-        input = encoder(img).to(device)
-        input = input.unsqueeze(0)
-        hidden = None
-
-        for _ in range(args.max_length):
-            lstm_out, hidden = decoder.lstm(input.float(), hidden)
-            output = decoder.linear(lstm_out)
-            output = output.squeeze(1)
-            _, max_indice = torch.max(output, dim=1)
-            predicted = max_indice.cpu().numpy()[0].item()
-            result.append(predicted)
-
-            if predicted == vocab(END_TOKEN):
-                break
-
-            input = decoder.embedding(max_indice).unsqueeze(1) """
-
-    bad_tokens = [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]
-    if strip_unk:
-        bad_tokens.append(vocab(UNK_TOKEN))
-    cleaned_pred = [w for w in result if w not in bad_tokens]
-
-    return [vocab.i2w[id] for id in cleaned_pred]
-
 def load_img(device, path):
     img = np.array(Image.fromarray(imageio.imread(path)))
     img = img.transpose(2, 0, 1)
@@ -188,52 +140,3 @@ def load_img(device, path):
     img = img.unsqueeze(0)  # (1, 3, 224, 224)
     return img
     
-def main():
-    parser = argparse.ArgumentParser(description='Generate caption')
-    parser.add_argument('checkpoint', type=str,
-                        help='checkpoint of trained model.')
-    parser.add_argument(
-        '--model_type', type=str, choices=['baseline', 'attention'], help='type of model.')
-    parser.add_argument(
-        '--strip_unk', type=bool, default=False, help='whether to strip <unk> tokens.')
-    parser.add_argument(
-        '--max_length', type=int, default=50, help='max length of generated caption.')
-    parser.add_argument(
-        '--beam_size', type=int, default=3, help='beam size for beam search.')
-    args = parser.parse_args()
-
-    device = torch.device('cpu')
-
-    chkpt = load_checkpoint(device, args)
-    _, encoder, decoder, _, _, _ = unpack_checkpoint(chkpt)
-
-    vocab = load_vocab()
-
-    watersport_img = load_img(device, os.path.join('sample_imgs', 'watersport.jpg'))
-    bathroom_img = load_img(device, os.path.join('sample_imgs', 'bathroom.jpg'))
-    couch_img = load_img(device, os.path.join('sample_imgs', 'couch.jpg'))
-
-
-    imgs = [('watersport', watersport_img), ('bathroom', bathroom_img), ('couch', couch_img)]
-
-    if args.model_type == 'baseline':
-        for about, img in imgs:
-            seq = baseline_greedy_search(device, args, img, encoder, decoder, vocab)
-            print(f'Topic: {about}')
-            print(seq)
-            print('---'*25)
-    elif args.model_type == 'attention':
-        for about, img in imgs:
-            seq, _, _ = attention_caption_image_beam_search(device, args, img, encoder, decoder, vocab)
-            bad_tokens = [vocab(START_TOKEN), vocab(END_TOKEN), vocab(PAD_TOKEN)]
-            if args.strip_unk:
-                bad_tokens.append(vocab(UNK_TOKEN))
-            cleaned_pred = [w for w in seq if w not in bad_tokens]
-            caption = [vocab.i2w[id] for id in cleaned_pred]
-            print(f'Topic: {about}')
-            print(caption)
-            print('---'*25)
-
-
-if __name__ == '__main__':
-    main()
