@@ -1,3 +1,5 @@
+#this code is inspired by https://github.com/ajamjoom/Image-Captions/blob/master/glove_embeds.py
+
 import torch
 import bcolz
 import numpy as np

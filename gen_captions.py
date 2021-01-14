@@ -1,3 +1,5 @@
+#this code is inpired by https://github.com/RoyalSkye/Image-Caption/blob/master/caption.py
+
 import os
 import sys
 sys.path.append('cocoapi/PythonAPI/')

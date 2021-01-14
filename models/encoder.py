@@ -1,3 +1,6 @@
+#this code is inspired by 
+#https://github.com/sauravraghuvanshi/Udacity-Computer-Vision-Nanodegree-Program/blob/master/project_2_image_captioning_project/model.py
+#https://github.com/ajamjoom/Image-Captions/blob/master/main.py
 import socket
 import torch
 from torch import nn

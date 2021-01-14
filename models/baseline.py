@@ -1,4 +1,5 @@
-
+#this code was inpired by 
+#https://github.com/sauravraghuvanshi/Udacity-Computer-Vision-Nanodegree-Program/blob/master/project_2_image_captioning_project/model.py
 import time
 import torch
 import torch.nn as nn

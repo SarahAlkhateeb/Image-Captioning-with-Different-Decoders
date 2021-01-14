@@ -1,3 +1,4 @@
+#this code is inspired by https://github.com/ajamjoom/Image-Captions/blob/master/processData.py
 from pycocotools.coco import COCO
 from collections import Counter
 import nltk

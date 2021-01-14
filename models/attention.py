@@ -1,3 +1,4 @@
+#this code is inspired by https://github.com/ajamjoom/Image-Captions/blob/master/main.py
 import time
 import torch
 import torch.nn as nn
