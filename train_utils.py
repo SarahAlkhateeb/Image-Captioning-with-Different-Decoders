@@ -1,3 +1,4 @@
+#this code is inspired by https://github.com/ajamjoom/Image-Captions/blob/master/main.py
 def clip_gradient(optimizer, grad_clip):
     """Clips gradients computed during backpropagation to avoid explosion of gradients.
 

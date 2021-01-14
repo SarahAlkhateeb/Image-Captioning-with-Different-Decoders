@@ -1,4 +1,4 @@
-
+#this code is inspired by https://github.com/RoyalSkye/Image-Caption/blob/master/caption.py
 from eval_func.bleu.bleu import Bleu
 from eval_func.rouge.rouge import Rouge
 from eval_func.cider.cider import Cider
